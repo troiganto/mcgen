@@ -1,0 +1,10 @@
+[package]
+name = "mcgen"
+version = "0.1.0"
+authors = ["Nico Madysa <nico.madysa@tu-dresden.de>"]
+
+[dependencies]
+num = "*"
+rand = "*"
+gnuplot = "*"
+dimensioned = "*"
