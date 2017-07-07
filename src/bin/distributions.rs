@@ -12,13 +12,17 @@ where
     R: Rng,
     D: IndependentSample<f64>,
 {
-    let iterator = iter::repeat(())
+    let sample = iter::repeat(())
         .take(sample_size)
         .map(|_| dist.ind_sample(rng));
-    let stats = mcgen::Statistics::from_sample(iterator);
-    println!("    mean: {}", stats.mean());
-    println!("    stdd: {}", stats.standard_deviation());
-    println!("    3sem: {}", 3.0 * stats.error_of_mean());
+
+    let mut stats = mcgen::Statistics::new();
+    let seconds_needed = mcgen::time::measure_seconds(|| {
+        stats = mcgen::Statistics::from_sample(sample);
+    });
+
+    println!("{}", stats);
+    println!("time: {:.2} s", seconds_needed);
 }
 
 // Berechnen Sie den Mittelwert, die Streubreite und die Unsicherheit
