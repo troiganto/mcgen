@@ -1,3 +1,4 @@
+use std::iter::FromIterator;
 use std::fmt::{self, Display};
 
 use num::Float;
@@ -85,5 +86,12 @@ impl<F: Float + Display> Display for Statistics<F> {
             self.error_of_mean(),
             self.standard_deviation()
         )
+    }
+}
+
+impl<F: Float> FromIterator<F> for Statistics<F> {
+    fn from_iter<T>(iter: T) -> Self
+    where T: IntoIterator<Item=F> {
+        Statistics::from_sample(iter)
     }
 }

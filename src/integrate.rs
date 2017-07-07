@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use num::Float;
 
-use rand;
+use rand::distributions;
 use rand::distributions::range::SampleRange;
 
 use super::Statistics;
@@ -15,7 +15,8 @@ where
     X: Float + SampleRange,
 {
     let width = range.end - range.start;
-    let dist = rand::distributions::Range::new(range.start, range.end);
-    let sample = Sample::with_size(dist, sample_size).map(|x| f(x) * width);
-    Statistics::from_sample(sample)
+    Sample::new(distributions::Range::new(range.start, range.end))
+        .take(sample_size)
+        .map(|x| f(x) * width)
+        .collect()
 }
