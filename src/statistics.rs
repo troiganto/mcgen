@@ -1,6 +1,9 @@
+use std::fmt::{self, Display};
+
 use num::Float;
 
 
+#[derive(Clone, Debug)]
 pub struct Statistics<F> {
     count: usize,
     mean: F,
@@ -64,5 +67,23 @@ impl<F: Float> Statistics<F> {
 
     fn to_float(n: usize) -> F {
         F::from(n).expect("cast usize to Float")
+    }
+}
+
+impl<F: Float> Default for Statistics<F> {
+    fn default() -> Self {
+        Statistics::<F>::new()
+    }
+}
+
+impl<F: Float + Display> Display for Statistics<F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Mean: {0:.5} ± {1:.5}\nStandard deviation: {2:.5}",
+            self.mean(),
+            self.error_of_mean(),
+            self.standard_deviation()
+        )
     }
 }
