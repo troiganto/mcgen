@@ -6,5 +6,6 @@ authors = ["Nico Madysa <nico.madysa@tu-dresden.de>"]
 [dependencies]
 num = "*"
 rand = "*"
+itertools = "*"
 gnuplot = "*"
 dimensioned = "*"
