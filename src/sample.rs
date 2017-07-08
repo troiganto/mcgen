@@ -7,8 +7,9 @@ use rand::{self, ThreadRng};
 use rand::distributions::IndependentSample;
 
 
-/// Helper type for `Sample::batching`.
-type BatchingFunc<F, D> = for<'r> fn(&'r mut Sample<F, D>) -> Option<(F, F)>;
+/// Helper types for `Sample::batching`.
+pub type BatchingFunc<F, D> = for<'r> fn(&'r mut Sample<F, D>) -> Option<(F, F)>;
+pub type PointSample<F, D> = itertools::Batching<Sample<F, D>, BatchingFunc<F, D>>;
 
 
 /// `Iterator` wrapper type around probability distributions.
@@ -51,7 +52,7 @@ where
         Some(self.get_two())
     }
 
-    pub fn as_points(self) -> itertools::Batching<Self, BatchingFunc<F, D>> {
+    pub fn as_points(self) -> PointSample<F, D> {
         self.batching(Self::get_some_two)
     }
 }

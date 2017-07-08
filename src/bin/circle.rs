@@ -2,35 +2,52 @@ extern crate num;
 extern crate rand;
 extern crate mcgen;
 
-use num::Float;
+use std::iter;
 
 use rand::distributions;
 
-use mcgen::{Sample, Statistics};
+use mcgen::Sample;
 
 
-fn abs2((x, y): (f64, f64)) -> f64 {
-    x * x + y * y
+type F64Range = distributions::Range<f64>;
+type F64PointSample = mcgen::sample::PointSample<f64, F64Range>;
+type Rejection = iter::Map<F64PointSample, fn((f64, f64)) -> f64>;
+type Integration = mcgen::integrate::Integrate<fn(f64) -> f64, f64>;
+
+
+fn get_point_weight((x, y): (f64, f64)) -> f64 {
+    if x * x + y * y < 1.0 { 4.0 } else { 0.0 }
 }
 
 
-fn hit_or_miss_circle(sample_size: usize) -> Statistics<f64> {
-    // Take a sample of `sample_size` uniformly distributed points.
-    // Only count point within the circle. The 4 accounts for the fact
-    // that our points only cover one quadrant of 2D space.
+fn circle_graph(x: f64) -> f64 {
+    4.0 * (1.0 - x * x).sqrt()
+}
+
+
+fn get_rejection_pi_calculator() -> Rejection {
     Sample::from(distributions::Range::new(0.0, 1.0))
         .as_points()
-        .take(sample_size)
-        .map(|point| if abs2(point) < 1.0 { 4.0 } else { 0.0 })
-        .collect()
+        .map(get_point_weight)
+}
+
+
+fn get_integration_pi_calculator() -> Integration {
+    mcgen::integrate::Integrate::new(circle_graph, 0.0..1.0)
 }
 
 
 fn main() {
     let sample_size = 1_000_000;
     println!("Integration method:");
-    mcgen::print_stats_and_time(|| mcgen::integrate(|x| 4.0 * (1.0 - x * x).sqrt(), 0.0..1.0, sample_size));
+    mcgen::print_stats_and_time(
+        || {
+            get_integration_pi_calculator()
+                .take(sample_size)
+                .collect()
+        },
+    );
     println!();
     println!("Rejection method:");
-    mcgen::print_stats_and_time(|| hit_or_miss_circle(sample_size));
+    mcgen::print_stats_and_time(|| get_rejection_pi_calculator().take(sample_size).collect());
 }
