@@ -40,12 +40,14 @@ where
         (self.get_one(), self.get_one())
     }
 
-    /// Crutch because closure->function pointer coercion is not stable yet.
+    /// Crutch because closure->function pointer coercion is not stable
+    /// yet.
     fn get_some_two(&mut self) -> Option<(F, F)> {
         Some(self.get_two())
     }
 
-    pub fn as_points(self) -> itertools::Batching<Self, for<'r> fn(&'r mut Self)->Option<(F, F)>> {
+    pub fn as_points(self,)
+        -> itertools::Batching<Self, for<'r> fn(&'r mut Self) -> Option<(F, F)>> {
         self.batching(Self::get_some_two)
     }
 }

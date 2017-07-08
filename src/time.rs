@@ -13,5 +13,5 @@ pub fn measure_seconds<F: FnOnce()>(func: F) -> f64 {
     let duration = measure(func);
     let secs = duration.as_secs() as f64;
     let nanosecs = duration.subsec_nanos() as f64;
-    secs + nanosecs/1e9
+    secs + nanosecs / 1e9
 }

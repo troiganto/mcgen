@@ -43,7 +43,7 @@ impl<F: Float> Statistics<F> {
         let delta = sample - self.mean;
         self.mean = self.mean + delta / Self::to_float(self.count);
         let delta_2 = sample - self.mean;
-        self.sum_of_squares = self.sum_of_squares + delta*delta_2;
+        self.sum_of_squares = self.sum_of_squares + delta * delta_2;
     }
 
     pub fn mean(&self) -> F {
@@ -91,7 +91,9 @@ impl<F: Float + Display> Display for Statistics<F> {
 
 impl<F: Float> FromIterator<F> for Statistics<F> {
     fn from_iter<T>(iter: T) -> Self
-    where T: IntoIterator<Item=F> {
+    where
+        T: IntoIterator<Item = F>,
+    {
         Statistics::from_sample(iter)
     }
 }
