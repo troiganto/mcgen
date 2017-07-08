@@ -106,3 +106,17 @@ impl<F: Float> FromIterator<F> for Statistics<F> {
         Statistics::from_sample(iter)
     }
 }
+
+
+/// Prints statistics and execution time of a process.
+pub fn print_stats_and_time<F, Func>(func: Func)
+where
+    F: Float + Display,
+    Func: FnOnce() -> Statistics<F>,
+{
+    use super::time;
+    let mut stats = Statistics::default();
+    let secs = time::measure_seconds(|| stats = func());
+    println!("{}", stats);
+    println!("time: {:.3} s", secs);
+}

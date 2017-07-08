@@ -1,19 +1,18 @@
 extern crate mcgen;
 extern crate rand;
 
-use rand::distributions::{self, IndependentSample};
-use mcgen::{time, Sample, Statistics};
+use rand::distributions::{Exp, IndependentSample, Normal, Range};
 
-fn print_statistics<D>(dist: D, sample_size: usize)
+
+/// Replacement that takes a distribution instead of a closure.
+fn print_stats_and_time<D>(dist: D, sample_size: usize)
 where
     D: IndependentSample<f64>,
 {
-    let mut stats = Statistics::default();
-    let sample = Sample::with_size(dist, sample_size);
-    let seconds_needed = time::measure_seconds(|| stats = sample.collect());
-    println!("{}", stats);
-    println!("time: {:.2} s", seconds_needed);
+    let sample = mcgen::Sample::with_size(dist, sample_size);
+    mcgen::print_stats_and_time(|| sample.collect());
 }
+
 
 // Berechnen Sie den Mittelwert, die Streubreite und die Unsicherheit
 // des Mittelwerts (99,73% Vertrauensbereich) jeweils für eine
@@ -24,12 +23,12 @@ where
 fn main() {
     let sample_size = 100_000_000;
     println!("Uniform distribution:");
-    print_statistics(distributions::Range::new(0.0, 1.0), sample_size);
+    print_stats_and_time(Range::new(0.0, 1.0), sample_size);
     println!();
     println!("Exponential distribution:");
-    print_statistics(distributions::Exp::new(1.0), sample_size);
+    print_stats_and_time(Exp::new(1.0), sample_size);
     println!();
     println!("Normal distribution:");
-    print_statistics(distributions::Normal::new(0.0, 1.0), sample_size);
+    print_stats_and_time(Normal::new(0.0, 1.0), sample_size);
     println!();
 }

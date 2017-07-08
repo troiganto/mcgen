@@ -28,10 +28,9 @@ fn hit_or_miss_circle(sample_size: usize) -> Statistics<f64> {
 
 fn main() {
     let sample_size = 1_000_000;
-    println!(
-        "Integration method:\n{}",
-        mcgen::integrate(|x| 4.0 * (1.0 - x * x).sqrt(), 0.0..1.0, sample_size)
-    );
+    println!("Integration method:");
+    mcgen::print_stats_and_time(|| mcgen::integrate(|x| 4.0 * (1.0 - x * x).sqrt(), 0.0..1.0, sample_size));
     println!();
-    println!("Rejection method:\n{}", hit_or_miss_circle(sample_size));
+    println!("Rejection method:");
+    mcgen::print_stats_and_time(|| hit_or_miss_circle(sample_size));
 }

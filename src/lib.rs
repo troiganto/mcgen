@@ -8,6 +8,6 @@ mod statistics;
 mod integrate;
 mod sample;
 
-pub use statistics::Statistics;
+pub use statistics::{Statistics, print_stats_and_time};
 pub use sample::Sample;
 pub use integrate::integrate;
