@@ -9,7 +9,7 @@ where
     D: IndependentSample<f64>,
 {
     let mut stats = Statistics::default();
-    let sample = Sample::new(dist).take(sample_size);
+    let sample = Sample::with_size(dist, sample_size);
     let seconds_needed = time::measure_seconds(|| stats = sample.collect());
     println!("{}", stats);
     println!("time: {:.2} s", seconds_needed);

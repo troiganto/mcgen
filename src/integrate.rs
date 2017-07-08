@@ -9,6 +9,11 @@ use super::Statistics;
 use super::Sample;
 
 
+/// Struct for Monte-Carlo integration of 1D real functions.
+///
+/// This struct is exposed to allow continuous inspection of
+/// the integration result and uncertainty. To just get the result
+/// immediately, use the function `integrate`.
 pub struct Integrate<F, X>
 where
     F: FnMut(X) -> X,
@@ -29,7 +34,7 @@ where
         Integrate {
             func: f,
             width: range.end - range.start,
-            sample: Sample::new(dist),
+            sample: Sample::from(dist),
         }
     }
 }
@@ -47,6 +52,10 @@ where
 }
 
 
+/// Integrates a function `f(x)` in a given `range`.
+///
+/// This function integrates via Mone-Carlo methods. `sample_size` is
+/// a measure of the integration precision.
 pub fn integrate<F, X>(f: F, range: Range<X>, sample_size: usize) -> Statistics<X>
 where
     F: FnMut(X) -> X,

@@ -4,6 +4,15 @@ use std::fmt::{self, Display};
 use num::Float;
 
 
+/// Counter-like type to calculate statistics on a sample.
+///
+/// that allows calculating the mean, standard deviation and standard
+/// error of the mean
+/// in an incremental manner.
+/// The algorithm has been copied from [Wikipedia][].
+///
+/// https://en.wikipedia.
+/// org/wiki/Algorithms_for_calculating_variance#Online_algorithm
 #[derive(Clone, Debug)]
 pub struct Statistics<F> {
     count: usize,
@@ -33,7 +42,7 @@ impl<F: Float> Statistics<F> {
     where
         I: IntoIterator<Item = F>,
     {
-        for point in sample.into_iter() {
+        for point in sample {
             self.add(point);
         }
     }
@@ -73,7 +82,7 @@ impl<F: Float> Statistics<F> {
 
 impl<F: Float> Default for Statistics<F> {
     fn default() -> Self {
-        Statistics::<F>::new()
+        Statistics::new()
     }
 }
 

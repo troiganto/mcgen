@@ -15,16 +15,13 @@ fn abs2((x, y): (f64, f64)) -> f64 {
 
 
 fn hit_or_miss_circle(sample_size: usize) -> Statistics<f64> {
-    // Take a sample of uniformly distributed numbers.
-    Sample::new(distributions::Range::new(0.0, 1.0))
-        // Convert them into points.
+    // Take a sample of `sample_size` uniformly distributed points.
+    // Only count point within the circle. The 4 accounts for the fact
+    // that our points only cover one quadrant of 2D space.
+    Sample::from(distributions::Range::new(0.0, 1.0))
         .as_points()
-        // Limit the number of points.
         .take(sample_size)
-        // Only count point within the circle. The 4 accounts for the
-        // fact that our points only cover one quadrant of 2D space.
         .map(|point| if abs2(point) < 1.0 { 4.0 } else { 0.0 })
-        // Collect statistics.
         .collect()
 }
 
