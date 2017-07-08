@@ -1,11 +1,8 @@
 extern crate num;
 extern crate rand;
-extern crate itertools;
 extern crate mcgen;
 
 use num::Float;
-
-use itertools::Itertools;
 
 use rand::distributions;
 
@@ -17,21 +14,11 @@ fn abs2((x, y): (f64, f64)) -> f64 {
 }
 
 
-fn point_from_sample<F, D>(sample: &mut Sample<F, D>) -> (F, F)
-where
-    D: distributions::IndependentSample<F>,
-{
-    let x = sample.next().expect("x");
-    let y = sample.next().expect("y");
-    (x, y)
-}
-
-
 fn hit_or_miss_circle(sample_size: usize) -> Statistics<f64> {
     // Take a sample of uniformly distributed numbers.
     Sample::new(distributions::Range::new(0.0, 1.0))
         // Convert them into points.
-        .batching(|sample| point_from_sample(sample).into())
+        .as_points()
         // Limit the number of points.
         .take(sample_size)
         // Only count point within the circle. The 4 accounts for the

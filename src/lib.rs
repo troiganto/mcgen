@@ -1,5 +1,6 @@
 extern crate num;
 extern crate rand;
+extern crate itertools;
 
 pub mod time;
 
