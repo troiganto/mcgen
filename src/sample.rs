@@ -7,6 +7,8 @@ use rand::{self, ThreadRng};
 use rand::distributions::IndependentSample;
 
 
+type BatchingFunc<F, D> = for<'r> fn(&'r mut Sample<F, D>) -> Option<(F, F)>;
+
 pub struct Sample<F, D>
 where
     D: IndependentSample<F>,
@@ -46,8 +48,7 @@ where
         Some(self.get_two())
     }
 
-    pub fn as_points(self,)
-        -> itertools::Batching<Self, for<'r> fn(&'r mut Self) -> Option<(F, F)>> {
+    pub fn as_points(self) -> itertools::Batching<Self, BatchingFunc<F, D>> {
         self.batching(Self::get_some_two)
     }
 }
