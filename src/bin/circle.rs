@@ -1,18 +1,117 @@
 extern crate num;
 extern crate rand;
 extern crate mcgen;
+extern crate gnuplot;
 
 use std::iter;
+use std::f64::consts::PI;
 
 use rand::distributions;
 
-use mcgen::Sample;
+use mcgen::{Sample, Statistics};
 
 
 type F64Range = distributions::Range<f64>;
 type F64PointSample = mcgen::sample::PointSample<f64, F64Range>;
 type Rejection = iter::Map<F64PointSample, fn((f64, f64)) -> f64>;
 type Integration = mcgen::integrate::Integrate<fn(f64) -> f64, f64>;
+
+
+const SAMPLE_SIZE: usize = 1_000_000;
+
+
+#[derive(Debug, Default)]
+struct PlotData {
+    pub epochs: Vec<usize>,
+    pub means: Vec<f64>,
+    pub mean_uncertainties: Vec<f64>,
+    pub abs_errors: Vec<f64>,
+    pub rel_errors: Vec<f64>,
+}
+
+impl PlotData {
+    pub fn new() -> Self {
+        PlotData::default()
+    }
+
+    pub fn clear(&mut self) {
+        self.epochs.clear();
+        self.means.clear();
+        self.mean_uncertainties.clear();
+        self.abs_errors.clear();
+        self.rel_errors.clear();
+    }
+
+    pub fn fill<I>(&mut self, mut sample: I, target: f64)
+    where
+        I: Iterator<Item = f64>,
+    {
+        self.clear();
+        self.fill_epochs();
+        let mut data_taken = 0;
+        let mut stats = Statistics::new();
+        for epoch in &self.epochs {
+            stats.add_sample(sample.by_ref().take(epoch - data_taken));
+            data_taken = *epoch;
+            self.means.push(stats.mean());
+            self.mean_uncertainties.push(stats.error_of_mean());
+            self.abs_errors.push(stats.mean() - target);
+            self.rel_errors.push(stats.mean() / target - 1.0);
+        }
+    }
+
+    fn fill_epochs(&mut self) {
+        let mut epoch = 10;
+        while epoch < SAMPLE_SIZE {
+            self.epochs.push(epoch);
+            epoch *= 10;
+        }
+    }
+
+    pub fn plot_two(first: &Self, second: &Self) {
+        use gnuplot::Figure;
+        use gnuplot::PlotOption::*;
+
+        let mut means = Figure::new();
+        means
+            .axes2d()
+            .y_error_lines(
+                &first.epochs,
+                &first.means,
+                &first.mean_uncertainties,
+                &[Color("black")],
+            )
+            .y_error_lines(
+                &second.epochs,
+                &second.means,
+                &second.mean_uncertainties,
+                &[Color("red")],
+            );
+        let mut abs_errors = Figure::new();
+        abs_errors
+            .axes2d()
+            .y_error_lines(
+                &first.epochs,
+                &first.abs_errors,
+                &first.mean_uncertainties,
+                &[Color("black")],
+            )
+            .y_error_lines(
+                &second.epochs,
+                &second.abs_errors,
+                &second.mean_uncertainties,
+                &[Color("red")],
+            );
+        let mut rel_errors = Figure::new();
+        rel_errors
+            .axes2d()
+            .points(&first.epochs, &first.rel_errors, &[Color("black")])
+            .points(&second.epochs, &second.rel_errors, &[Color("red")]);
+        means.show();
+        abs_errors.show();
+        rel_errors.show();
+    }
+}
 
 
 fn get_point_weight((x, y): (f64, f64)) -> f64 {
@@ -37,17 +136,32 @@ fn get_integration_pi_calculator() -> Integration {
 }
 
 
-fn main() {
-    let sample_size = 1_000_000;
+fn results_and_time_of_full_run() {
     println!("Integration method:");
     mcgen::print_stats_and_time(
         || {
             get_integration_pi_calculator()
-                .take(sample_size)
+                .take(SAMPLE_SIZE)
                 .collect()
         },
     );
     println!();
     println!("Rejection method:");
-    mcgen::print_stats_and_time(|| get_rejection_pi_calculator().take(sample_size).collect());
+    mcgen::print_stats_and_time(|| get_rejection_pi_calculator().take(SAMPLE_SIZE).collect());
+}
+
+
+fn make_incremental_plots() {
+    // Create vectors for plotting.
+    let mut integration_data = PlotData::new();
+    integration_data.fill(get_integration_pi_calculator(), PI);
+    let mut rejection_data = PlotData::new();
+    rejection_data.fill(get_rejection_pi_calculator(), PI);
+    PlotData::plot_two(&integration_data, &rejection_data);
+}
+
+
+fn main() {
+    results_and_time_of_full_run();
+    make_incremental_plots();
 }
