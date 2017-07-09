@@ -4,7 +4,7 @@ extern crate mcgen;
 extern crate gnuplot;
 
 use std::iter;
-use std::f64::consts::PI;
+use std::f64::consts;
 
 use rand::distributions;
 
@@ -62,54 +62,101 @@ impl PlotData {
 
     fn fill_epochs(&mut self) {
         let mut epoch = 10;
-        while epoch < SAMPLE_SIZE {
+        while epoch <= SAMPLE_SIZE {
             self.epochs.push(epoch);
             epoch *= 10;
         }
     }
 
-    pub fn plot_two(first: &Self, second: &Self) {
-        use gnuplot::Figure;
+    pub fn plot_means(first: &Self, second: &Self) {
+        use gnuplot::{Figure, AxesCommon};
         use gnuplot::PlotOption::*;
+        use gnuplot::AutoOption::*;
+        use gnuplot::TickOption;
 
         let mut means = Figure::new();
         means
+            .set_terminal("pdfcairo", "means.pdf")
             .axes2d()
+            .set_x_label("Sample size", &[])
+            .set_x_range(Fix(1.0), Fix(SAMPLE_SIZE as f64))
+            .set_x_log(Some(10.0))
+            .set_x_ticks(Some((Auto, 0)), &[TickOption::Format("10^{%T}")], &[])
+            .set_y_label("~π{0.8∼}", &[])
+            .set_y_range(Fix(1.5), Fix(4.5))
             .y_error_lines(
                 &first.epochs,
                 &first.means,
                 &first.mean_uncertainties,
-                &[Color("black")],
+                &[Color("black"), Caption("Integration method")],
             )
             .y_error_lines(
                 &second.epochs,
                 &second.means,
                 &second.mean_uncertainties,
-                &[Color("red")],
+                &[Color("red"), Caption("Rejection method")],
             );
-        let mut abs_errors = Figure::new();
-        abs_errors
+        means.show();
+    }
+
+    pub fn plot_abs_errors(first: &Self, second: &Self) {
+        use gnuplot::{Figure, AxesCommon};
+        use gnuplot::PlotOption::*;
+        use gnuplot::AutoOption::*;
+        use gnuplot::TickOption;
+
+        let mut means = Figure::new();
+        means
+            .set_terminal("pdfcairo", "abs_errors.pdf")
             .axes2d()
+            .set_x_label("Sample size", &[])
+            .set_x_range(Fix(1.0), Fix(SAMPLE_SIZE as f64))
+            .set_x_log(Some(10.0))
+            .set_x_ticks(Some((Auto, 0)), &[TickOption::Format("10^{%T}")], &[])
+            .set_y_label("~π{0.8∼}&{−}− π", &[])
+            .set_y_range(Fix(-1.5), Fix(1.5))
             .y_error_lines(
                 &first.epochs,
                 &first.abs_errors,
                 &first.mean_uncertainties,
-                &[Color("black")],
+                &[Color("black"), Caption("Integration method")],
             )
             .y_error_lines(
                 &second.epochs,
                 &second.abs_errors,
                 &second.mean_uncertainties,
-                &[Color("red")],
+                &[Color("red"), Caption("Rejection method")],
             );
-        let mut rel_errors = Figure::new();
-        rel_errors
-            .axes2d()
-            .points(&first.epochs, &first.rel_errors, &[Color("black")])
-            .points(&second.epochs, &second.rel_errors, &[Color("red")]);
         means.show();
-        abs_errors.show();
-        rel_errors.show();
+    }
+
+    pub fn plot_rel_errors(first: &Self, second: &Self) {
+        use gnuplot::{Figure, AxesCommon};
+        use gnuplot::PlotOption::*;
+        use gnuplot::AutoOption::*;
+        use gnuplot::TickOption;
+
+        let mut means = Figure::new();
+        means
+            .set_terminal("pdfcairo", "rel_errors.pdf")
+            .axes2d()
+            .set_x_label("Sample size", &[])
+            .set_x_range(Fix(1.0), Fix(SAMPLE_SIZE as f64))
+            .set_x_log(Some(10.0))
+            .set_x_ticks(Some((Auto, 0)), &[TickOption::Format("10^{%T}")], &[])
+            .set_y_label("~π{0.8∼}&{−}/π − 1", &[])
+            .set_y_range(Fix(-1.0), Fix(1.0))
+            .points(
+                &first.epochs,
+                &first.rel_errors,
+                &[Color("black"), Caption("Integration method")],
+            )
+            .points(
+                &second.epochs,
+                &second.rel_errors,
+                &[Color("red"), Caption("Rejection method")],
+            );
+        means.show();
     }
 }
 
@@ -154,10 +201,12 @@ fn results_and_time_of_full_run() {
 fn make_incremental_plots() {
     // Create vectors for plotting.
     let mut integration_data = PlotData::new();
-    integration_data.fill(get_integration_pi_calculator(), PI);
+    integration_data.fill(get_integration_pi_calculator(), consts::PI);
     let mut rejection_data = PlotData::new();
-    rejection_data.fill(get_rejection_pi_calculator(), PI);
-    PlotData::plot_two(&integration_data, &rejection_data);
+    rejection_data.fill(get_rejection_pi_calculator(), consts::PI);
+    PlotData::plot_means(&integration_data, &rejection_data);
+    PlotData::plot_abs_errors(&integration_data, &rejection_data);
+    PlotData::plot_rel_errors(&integration_data, &rejection_data);
 }
 
 
