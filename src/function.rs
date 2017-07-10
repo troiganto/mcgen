@@ -34,7 +34,7 @@ impl<F: Debug + Default + Float> Function<F> {
         let (x0, x1) = (self.xdata[iend - 1], self.xdata[iend]);
         let (y0, y1) = (self.ydata[iend - 1], self.ydata[iend]);
         let slope = (y1 - y0) / (x1 - x0);
-        (x - x1) * slope + y0
+        (x - x0) * slope + y0
     }
 
     pub fn push(&mut self, (x, y): (F, F)) {
@@ -57,7 +57,7 @@ impl<F: Debug + Default + Float> Function<F> {
         let insert_point = self.find_first_x_greater_than(x);
         if let Some(insert_point) = insert_point {
             // Check for uniqueness.
-            if insert_point > 0 && self.xdata[insert_point-1] == x {
+            if insert_point > 0 && self.xdata[insert_point - 1] == x {
                 panic!("attempted to add same point twice");
             }
             self.xdata.insert(insert_point, x);
