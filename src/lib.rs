@@ -17,4 +17,4 @@ pub use statistics::{Statistics, print_stats_and_time};
 pub use sample::Sample;
 pub use integrate::integrate;
 pub use function::Function;
-pub use crosssection::{CrossSection, RejectionSampler};
+pub use crosssection::{CoherentCrossSection, IncoherentCrossSection, RejectionSampler};
