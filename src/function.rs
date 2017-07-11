@@ -82,17 +82,18 @@ impl<F> Function<F>
 where
     F: Debug + Default + Float + for<'de> Deserialize<'de>,
 {
-    pub fn from_file<P>(path: P, delimiter: u8, num_headers: usize) -> csv::Result<Self>
+    pub fn from_file<P>(path: P) -> csv::Result<Self>
     where
         P: AsRef<Path>,
     {
         let mut func = Function::new();
         let mut reader = csv::ReaderBuilder::new()
-            .delimiter(delimiter)
-            .flexible(true)
-            .has_headers(false)
+            .delimiter(b'\t')
+            .flexible(false)
+            .has_headers(true)
+            .comment(Some(b'#'))
             .from_path(path)?;
-        for record in reader.records().skip(num_headers) {
+        for record in reader.records() {
             let record = record?;
             let point = record.deserialize(None)?;
             func.push(point);

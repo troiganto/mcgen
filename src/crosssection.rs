@@ -41,7 +41,7 @@ impl CoherentCrossSection {
     where
         P: AsRef<Path>,
     {
-        let form_factor = Function::from_file(form_factor_file, b'\t', 2)?;
+        let form_factor = Function::from_file(form_factor_file)?;
         let result = CoherentCrossSection { form_factor };
         Ok(result)
     }
@@ -76,7 +76,7 @@ impl IncoherentCrossSection {
     where
         P: AsRef<Path>,
     {
-        let scattering_function = Function::from_file(scattering_function_file, b'\t', 2)?;
+        let scattering_function = Function::from_file(scattering_function_file)?;
         let result = IncoherentCrossSection { scattering_function };
         Ok(result)
     }

@@ -1,4 +1,4 @@
-Mittlere freie Weglängen für Z = 82
+# Mittlere freie Weglängen für Z = 82
 E [keV]	MFWL_t [cm]	MFWL_k [cm]	MFWL_i [cm]	MFWL_e [cm]
 1.00000E+00	1.69261E-05	7.05000E-03	2.45798E+01	1.69651E-05
 1.10000E+00	2.03998E-05	7.10000E-03	2.12044E+01	2.04566E-05
