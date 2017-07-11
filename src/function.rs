@@ -1,8 +1,11 @@
-use num::Float;
-use csv;
-use std::path::Path;
-use serde::Deserialize;
+use std::fs::File;
 use std::fmt::Debug;
+use std::path::Path;
+
+use csv;
+use num::Float;
+use serde::Deserialize;
+
 
 #[derive(Debug, Default, Clone)]
 pub struct Function<F: Debug + Default + Float> {
@@ -87,12 +90,7 @@ where
         P: AsRef<Path>,
     {
         let mut func = Function::new();
-        let mut reader = csv::ReaderBuilder::new()
-            .delimiter(b'\t')
-            .flexible(false)
-            .has_headers(true)
-            .comment(Some(b'#'))
-            .from_path(path)?;
+        let mut reader = Self::new_reader(path)?;
         for record in reader.records() {
             let record = record?;
             let point = record.deserialize(None)?;
@@ -100,4 +98,40 @@ where
         }
         Ok(func)
     }
+
+    pub fn multiple_from_file<P>(path: P) -> csv::Result<Vec<Self>>
+    where
+        P: AsRef<Path>,
+    {
+        let mut funcs = Vec::new();
+        let mut reader = Self::new_reader(path)?;
+
+        for record in reader.records() {
+            let record = record?;
+            if funcs.is_empty() {
+                for _ in 1..record.len() {
+                    funcs.push(Function::new());
+                }
+            }
+            let record: Vec<F> = record.deserialize(None)?;
+            let (&x, rest) = record.split_first().expect("empty record");
+            for (&y, func) in rest.iter().zip(&mut funcs) {
+                func.push((x, y));
+            }
+        }
+        Ok(funcs)
+    }
+
+    pub fn new_reader<P>(path: P) -> csv::Result<csv::Reader<File>>
+    where
+        P: AsRef<Path>,
+    {
+        csv::ReaderBuilder::new()
+            .delimiter(b'\t')
+            .flexible(false)
+            .has_headers(true)
+            .comment(Some(b'#'))
+            .from_path(path)
+    }
+
 }
