@@ -9,7 +9,7 @@ use dimensioned::si::*;
 use dimensioned::Dimensionless;
 use dimensioned::f64prefixes::*;
 
-use mcgen::{CoherentCrossSection, IncoherentCrossSection, RejectionSampler};
+use mcgen::crosssection::*;
 
 
 fn make_mu_histogram<I>(mut sample: I, n_bins: usize, n_samples: usize) -> (Vec<f64>, Vec<f64>)
@@ -46,7 +46,7 @@ where
 }
 
 
-fn plot_histogram<Tx, X, Ty, Y>(x: X, y: Y)
+fn plot_histogram<Tx, X, Ty, Y>(filename: &str, x: X, y: Y)
 where
     Tx: gnuplot::DataType,
     Ty: gnuplot::DataType,
@@ -57,7 +57,8 @@ where
     use gnuplot::AxesCommon;
 
     let mut hist = gnuplot::Figure::new();
-    hist.axes2d()
+    hist.set_terminal("pdfcairo", filename)
+        .axes2d()
         .set_x_label("µ", &[])
         .set_x_range(Fix(-1.0), Fix(1.0))
         .set_y_range(Fix(0.0), Auto)
@@ -66,12 +67,12 @@ where
 }
 
 
-fn get_args() -> (Joule<f64>, usize, usize) {
+fn get_args() -> (String, usize, usize) {
     let mut args = env::args();
     let _executable = args.next().expect("no executable");
-    let energy = match args.next() {
-        Some(s) => s.parse::<f64>().expect("not a number") * KILO * EV,
-        None => panic!("missing argument: energy in keV"),
+    let element = match args.next() {
+        Some(s) => s,
+        None => panic!("missing argument: element name"),
     };
     let n_bins = match args.next() {
         Some(s) => s.parse::<usize>().expect("not a number"),
@@ -81,21 +82,45 @@ fn get_args() -> (Joule<f64>, usize, usize) {
         Some(s) => s.parse::<usize>().expect("not a number"),
         None => panic!("missing argument: number of bins"),
     };
-    (energy, n_bins, n_samples)
+    (element, n_bins, n_samples)
 }
 
 
-fn main() {
-    let (energy, n_bins, n_samples) = get_args();
-
-    let incoherent = IncoherentCrossSection::new("../data/ISF.dat").unwrap();
-    let sampler = RejectionSampler::new(incoherent, energy);
-
+fn handle_cross_section<XS: CrossSection>(
+    xsection: XS,
+    filename: &str,
+    energy: Joule<f64>,
+    n_bins: usize,
+    n_samples: usize,
+) {
+    let sampler = RejectionSampler::new(xsection, energy);
     let secs = mcgen::time::measure_seconds(
         || {
             let (x, y) = make_mu_histogram(sampler, n_bins, n_samples);
-            plot_histogram(x, y);
+            plot_histogram(filename, x, y);
         },
     );
     println!("{:.2} s", secs);
+}
+
+fn main() {
+    let (element, n_bins, n_samples) = get_args();
+
+    let energy = match element.as_str() {
+        "cobalt" => 300.0 * KILO * EV,
+        "caesium" => 661.7 * KILO * EV,
+        _ => panic!("bad element name"),
+    };
+    {
+        let coherent = CoherentCrossSection::new("data/AFF.dat").unwrap();
+        let mut filename = element.clone();
+        filename.push_str("_coherent.pdf");
+        handle_cross_section(coherent, &filename, energy, n_bins, n_samples);
+    }
+    {
+        let incoherent = IncoherentCrossSection::new("data/ISF.dat").unwrap();
+        let mut filename = element.clone();
+        filename.push_str("_incoherent.pdf");
+        handle_cross_section(incoherent, &filename, energy, n_bins, n_samples);
+    }
 }
