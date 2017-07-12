@@ -50,6 +50,10 @@ impl Point {
         self.x += d.dx() * scale;
         self.y += d.dy() * scale;
     }
+
+    pub fn to_tuple(&self) -> (f64, f64) {
+        (self.x, self.y)
+    }
 }
 
 impl From<(f64, f64)> for Point {
