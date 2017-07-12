@@ -52,6 +52,12 @@ impl Point {
     }
 }
 
+impl From<(f64, f64)> for Point {
+    fn from((x, y): (f64, f64)) -> Self {
+        Point::new(x, y)
+    }
+}
+
 
 #[derive(Debug)]
 pub struct Direction {
