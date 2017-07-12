@@ -83,6 +83,12 @@ impl IncoherentCrossSection {
         Ok(result)
     }
 
+    pub fn compton_scatter(energy: Joule<f64>, mu: Unitless<f64>) -> Joule<f64> {
+        let kappa = energy / (M_E * C0 * C0);
+        let kappa_antimu = kappa * (1.0 - mu);
+        energy / (1.0 + kappa_antimu)
+    }
+
     pub fn scattering_function(&self, energy: Joule<f64>, mu: Unitless<f64>) -> Unitless<f64> {
         let x = get_x(energy, mu) / (KILO * EV);
         let scattering_function = self.scattering_function.call(*x.value());
