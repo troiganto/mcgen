@@ -1,6 +1,6 @@
 use rand::{Rng, thread_rng};
 
-use super::{Point, Material, Event, ParticleResult};
+use super::{Point, Material, Event};
 use super::particle::Photon;
 
 
@@ -20,8 +20,16 @@ impl Source {
 }
 
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ParticleStatus {
+    Lost,
+    Propagating,
+    Detected,
+}
+
+
 pub trait Experiment {
-    fn get_source(&self) -> &Source;
+    fn source(&self) -> &Source;
 
     fn x_start(&self) -> f64;
 
@@ -39,62 +47,75 @@ pub trait Experiment {
         energy: f64,
         rng: &mut R,
     ) -> (f64, f64);
+}
 
-    fn next_detected_photon(&self) -> Photon {
-        let source = self.get_source();
-        let mut rng = thread_rng();
+
+pub fn simulate_particle<E>(exp: &E) -> Photon
+where
+    E: Experiment,
+{
+    let source = exp.source();
+    let mut rng = thread_rng();
+    loop {
+        // Get a photon.
+        let mut photon = source.emit_photon(&mut rng);
+
+        // Make sure it's headed towards the experiment.
+        if photon.go_to_x(exp.x_start()).is_err() {
+            continue;
+        }
+
+        // Propagate it until it hits the detector or gets lost. If it
+        // gets detected, the function is done. Otherwise, we have to
+        // break the inner loop and continue the outer loop.
         let mut result;
         loop {
-            // Get a photon.
-            let mut photon = source.emit_photon(&mut rng);
-
-            // Make sure it's headed towards the experiment.
-            if photon.go_to_x(self.x_start()).is_err() {
-                continue;
-            }
-
-            // Propagate it until it hits the detector or gets absorbed.
-            loop {
-                // Move the particle. If it leaves the experiment, stop.
-                let material = self.get_material(photon.location());
-                let scale = self.gen_free_path(material, photon.energy(), &mut rng);
-                photon.step(scale).expect("`scale` cannot be negative");
-                if photon.location().x() < self.x_start() {
-                    result = ParticleResult::Lost;
-                    break;
-                }
-
-                // Find the next interaction at the new location.
-                let material = self.get_material(photon.location());
-                let event = self.gen_event(material, photon.energy(), &mut rng);
-                match event {
-                    Event::Nothing => {},
-                    Event::Absorbed => {
-                        result = match material {
-                            Material::Detector => ParticleResult::Detected,
-                            _ => ParticleResult::Lost,
-                        };
-                        break;
-                    },
-                    Event::CoherentScatter => {
-                        let angle = self.gen_coherent_scatter(material, photon.energy(), &mut rng);
-                        photon.direction_mut().rotate(angle);
-                    },
-                    Event::IncoherentScatter => {
-                        let (angle, energy) =
-                            self.gen_incoherent_scatter(material, photon.energy(), &mut rng);
-                        photon.direction_mut().rotate(angle);
-                        photon.set_energy(energy);
-                    },
-                }
-            }
-
-            // After propagation is done, check if the particle was
-            // detected.
+            result = propagate(exp, &mut photon, &mut rng);
             match result {
-                ParticleResult::Lost => continue,
-                ParticleResult::Detected => return photon,
+                ParticleStatus::Propagating => {},
+                ParticleStatus::Detected => return photon,
+                ParticleStatus::Lost => break,
             }
         }
+    }
+}
+
+
+fn propagate<E, R>(exp: &E, photon: &mut Photon, rng: &mut R) -> ParticleStatus
+where
+    E: Experiment,
+    R: Rng,
+{
+    // Move the particle. If it leaves the experiment, stop.
+    let material = exp.get_material(photon.location());
+    let scale = exp.gen_free_path(material, photon.energy(), rng);
+    photon.step(scale).expect("`scale` cannot be negative");
+    if photon.location().x() < exp.x_start() {
+        return ParticleStatus::Lost;
+    }
+
+    // Find the next interaction at the new location.
+    let material = exp.get_material(photon.location());
+    let event = exp.gen_event(material, photon.energy(), rng);
+
+    match event {
+        Event::Nothing => ParticleStatus::Propagating,
+        Event::Absorbed => {
+            match material {
+                Material::Detector => ParticleStatus::Detected,
+                _ => ParticleStatus::Lost,
+            }
+        },
+        Event::CoherentScatter => {
+            let angle = exp.gen_coherent_scatter(material, photon.energy(), rng);
+            photon.direction_mut().rotate(angle);
+            ParticleStatus::Propagating
+        },
+        Event::IncoherentScatter => {
+            let (angle, energy) = exp.gen_incoherent_scatter(material, photon.energy(), rng);
+            photon.direction_mut().rotate(angle);
+            photon.set_energy(energy);
+            ParticleStatus::Propagating
+        },
     }
 }

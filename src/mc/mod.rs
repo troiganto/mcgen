@@ -8,6 +8,9 @@ pub mod particle;
 pub mod experiment;
 
 
+pub use self::particle::Photon;
+pub use self::experiment::{Source, Experiment, simulate_particle};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Material {
     Air,
@@ -22,13 +25,6 @@ pub enum Event {
     CoherentScatter,
     IncoherentScatter,
     Absorbed,
-}
-
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ParticleResult {
-    Lost,
-    Detected,
 }
 
 
