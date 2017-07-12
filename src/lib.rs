@@ -13,6 +13,8 @@ pub mod sample;
 pub mod function;
 pub mod crosssection;
 
+pub mod mc;
+
 pub use statistics::{Statistics, print_stats_and_time};
 pub use sample::Sample;
 pub use integrate::integrate;
