@@ -32,6 +32,7 @@ pub trait CrossSection {
 
 /// A coherent scattering cross-section that depends on an atomic form
 /// factor.
+#[derive(Debug)]
 pub struct CoherentCrossSection {
     form_factor: Function<f64>,
 }
@@ -67,6 +68,7 @@ impl CrossSection for CoherentCrossSection {
 
 /// An incoherent scattering cross-section that depends on an
 /// incoherent scattering function.
+#[derive(Debug)]
 pub struct IncoherentCrossSection {
     scattering_function: Function<f64>,
 }
