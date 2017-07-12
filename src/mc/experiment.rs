@@ -1,16 +1,18 @@
 use rand::{Rng, thread_rng};
 
+use dimensioned::si::Joule;
+
 use super::{Point, Material, Event};
 use super::particle::Photon;
 
 
 pub struct Source {
     location: Point,
-    energy: f64,
+    energy: Joule<f64>,
 }
 
 impl Source {
-    pub fn new(location: Point, energy: f64) -> Self {
+    pub fn new(location: Point, energy: Joule<f64>) -> Self {
         Source { location, energy }
     }
 
@@ -35,18 +37,23 @@ pub trait Experiment {
 
     fn get_material(&self, location: &Point) -> Material;
 
-    fn gen_free_path<R: Rng>(&self, material: Material, energy: f64, rng: &mut R) -> f64;
+    fn gen_free_path<R: Rng>(&self, material: Material, energy: Joule<f64>, rng: &mut R) -> f64;
 
-    fn gen_event<R: Rng>(&self, material: Material, energy: f64, rng: &mut R) -> Event;
+    fn gen_event<R: Rng>(&self, material: Material, energy: Joule<f64>, rng: &mut R) -> Event;
 
-    fn gen_coherent_scatter<R: Rng>(&self, material: Material, energy: f64, rng: &mut R) -> f64;
+    fn gen_coherent_scatter<R: Rng>(
+        &self,
+        material: Material,
+        energy: Joule<f64>,
+        rng: &mut R,
+    ) -> f64;
 
     fn gen_incoherent_scatter<R: Rng>(
         &self,
         material: Material,
-        energy: f64,
+        energy: Joule<f64>,
         rng: &mut R,
-    ) -> (f64, f64);
+    ) -> (f64, Joule<f64>);
 }
 
 

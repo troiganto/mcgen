@@ -1,16 +1,18 @@
 use rand::Rng;
 
+use dimensioned::si::Joule;
+
 use super::{Point, Direction};
 
 #[derive(Debug)]
 pub struct Photon {
     location: Point,
     direction: Direction,
-    energy: f64,
+    energy: Joule<f64>,
 }
 
 impl Photon {
-    pub fn emit_at<R: Rng>(location: Point, energy: f64, rng: &mut R) -> Self {
+    pub fn emit_at<R: Rng>(location: Point, energy: Joule<f64>, rng: &mut R) -> Self {
         let direction = rng.gen();
         Photon {
             location,
@@ -25,14 +27,14 @@ impl Photon {
     pub fn direction(&self) -> &Direction {
         &self.direction
     }
-    pub fn energy(&self) -> f64 {
+    pub fn energy(&self) -> Joule<f64> {
         self.energy
     }
 
     pub fn direction_mut(&mut self) -> &mut Direction {
         &mut self.direction
     }
-    pub fn set_energy(&mut self, energy: f64) {
+    pub fn set_energy(&mut self, energy: Joule<f64>) {
         self.energy = energy
     }
 
