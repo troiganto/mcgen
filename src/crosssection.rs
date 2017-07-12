@@ -2,13 +2,13 @@ use std::path::Path;
 
 use csv;
 
-use rand::distributions;
+use rand::{Rng, thread_rng};
+use rand::distributions::{self, Sample, IndependentSample};
 
 use dimensioned::si::*;
 use dimensioned::Dimensionless;
 use dimensioned::f64prefixes::*;
 
-use super::Sample;
 use super::Function;
 
 
@@ -110,34 +110,37 @@ impl CrossSection for IncoherentCrossSection {
 
 /// Iterator that samples `mu` from a cross-section distribution using
 /// the rejection method.
-pub struct RejectionSampler<XS: CrossSection> {
-    dist: XS,
+pub struct RejectionSampler<'a, XS>
+where
+    XS: 'a + CrossSection,
+{
+    dist: &'a XS,
     energy: Joule<f64>,
-    mu_sample: Sample<f64, distributions::Range<f64>>,
-    xsection_sample: Sample<f64, distributions::Range<f64>>,
+    mu_dist: distributions::Range<f64>,
+    xsection_dist: distributions::Range<f64>,
 }
 
-impl<XS: CrossSection> RejectionSampler<XS> {
-    pub fn new(dist: XS, energy: Joule<f64>) -> Self {
-        let mu_dist = distributions::Range::new(-1.0, 1.0);
-        let mu_sample = Sample::from(mu_dist);
-
+impl<'a, XS> RejectionSampler<'a, XS>
+where
+    XS: 'a + CrossSection,
+{
+    pub fn new(dist: &'a XS, energy: Joule<f64>) -> Self {
         let max_xsection = dist.max(energy) / M2;
         let xsection_dist = distributions::Range::new(-0.0, *max_xsection.value());
-        let xsection_sample = Sample::from(xsection_dist);
+        let mu_dist = distributions::Range::new(-1.0, 1.0);
 
         RejectionSampler {
             dist,
             energy,
-            mu_sample,
-            xsection_sample,
+            mu_dist,
+            xsection_dist,
         }
     }
 
-    pub fn get_mu(&mut self) -> Unitless<f64> {
+    pub fn gen_mu<R: Rng>(&self, rng: &mut R) -> Unitless<f64> {
         loop {
-            let random_mu = Unitless::new(self.mu_sample.get_one());
-            let random_xsection = self.xsection_sample.get_one() * M2;
+            let random_mu = Unitless::new(self.mu_dist.ind_sample(rng));
+            let random_xsection = self.xsection_dist.ind_sample(rng) * M2;
             let max_xsection = self.dist.eval(self.energy, random_mu);
             if random_xsection < max_xsection {
                 return random_mu;
@@ -146,11 +149,33 @@ impl<XS: CrossSection> RejectionSampler<XS> {
     }
 }
 
-impl<XS: CrossSection> Iterator for RejectionSampler<XS> {
+impl<'a, XS> Sample<Unitless<f64>> for RejectionSampler<'a, XS>
+where
+    XS: 'a + CrossSection,
+{
+    fn sample<R: Rng>(&mut self, rng: &mut R) -> Unitless<f64> {
+        self.gen_mu(rng)
+    }
+}
+
+impl<'a, XS> IndependentSample<Unitless<f64>> for RejectionSampler<'a, XS>
+where
+    XS: 'a + CrossSection,
+{
+    fn ind_sample<R: Rng>(&self, rng: &mut R) -> Unitless<f64> {
+        self.gen_mu(rng)
+    }
+}
+
+impl<'a, XS> Iterator for RejectionSampler<'a, XS>
+where
+    XS: 'a + CrossSection,
+{
     type Item = Unitless<f64>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(self.get_mu())
+        let mut rng = thread_rng();
+        Some(self.gen_mu(&mut rng))
     }
 }
 

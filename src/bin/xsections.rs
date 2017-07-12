@@ -86,14 +86,16 @@ fn get_args() -> (String, usize, usize) {
 }
 
 
-fn handle_cross_section<XS: CrossSection>(
+fn handle_cross_section<XS>(
     xsection: XS,
     filename: &str,
     energy: Joule<f64>,
     n_bins: usize,
     n_samples: usize,
-) {
-    let sampler = RejectionSampler::new(xsection, energy);
+) where
+    XS: CrossSection,
+{
+    let sampler = RejectionSampler::new(&xsection, energy);
     let secs = mcgen::time::measure_seconds(
         || {
             let (x, y) = make_mu_histogram(sampler, n_bins, n_samples);
