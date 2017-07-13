@@ -26,6 +26,18 @@ impl<F: Debug + Default + Float> Function<F> {
         &self.ydata
     }
 
+    pub fn min(&self) -> Option<&F> {
+        self.ydata
+            .iter()
+            .min_by(|y1, y2| y1.partial_cmp(y2).expect("NaNs are not allowed"))
+    }
+
+    pub fn max(&self) -> Option<&F> {
+        self.ydata
+            .iter()
+            .max_by(|y1, y2| y1.partial_cmp(y2).expect("NaNs are not allowed"))
+    }
+
     pub fn call(&self, x: F) -> F {
         let some_iend = self.find_first_x_greater_than(x);
         let iend = match some_iend {
