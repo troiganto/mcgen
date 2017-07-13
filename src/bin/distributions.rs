@@ -3,14 +3,21 @@ extern crate rand;
 
 use rand::distributions::{Exp, IndependentSample, Normal, Range};
 
+use mcgen::IntoSampleIter;
 
 /// Replacement that takes a distribution instead of a closure.
 fn print_stats_and_time<D>(dist: D, sample_size: usize)
 where
     D: IndependentSample<f64>,
 {
-    let sample = mcgen::Sample::with_size(dist, sample_size);
-    mcgen::print_stats_and_time(|| sample.collect());
+    let mut rng = rand::thread_rng();
+    mcgen::print_stats_and_time(
+        || {
+            dist.into_sample_iter(&mut rng)
+                .take(sample_size)
+                .collect()
+        },
+    );
 }
 
 

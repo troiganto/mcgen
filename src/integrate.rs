@@ -2,11 +2,11 @@ use std::ops::Range;
 
 use num::Float;
 
-use rand::distributions;
+use rand::Rng;
 use rand::distributions::range::SampleRange;
+use rand::distributions::{self, Sample, IndependentSample};
 
-use super::Statistics;
-use super::Sample;
+use super::{IntoSampleIter, Statistics};
 
 
 /// Struct for Monte-Carlo integration of 1D real functions.
@@ -21,7 +21,7 @@ where
 {
     func: F,
     width: X,
-    sample: Sample<X, distributions::Range<X>>,
+    x_sample: distributions::Range<X>,
 }
 
 impl<F, X> Integrate<F, X>
@@ -30,24 +30,33 @@ where
     X: Float + SampleRange,
 {
     pub fn new(f: F, range: Range<X>) -> Self {
-        let dist = distributions::Range::new(range.start, range.end);
         Integrate {
             func: f,
             width: range.end - range.start,
-            sample: Sample::from(dist),
+            x_sample: distributions::Range::new(range.start, range.end),
         }
     }
 }
 
-impl<F, X> Iterator for Integrate<F, X>
+impl<F, X> Sample<X> for Integrate<F, X>
 where
     F: FnMut(X) -> X,
     X: Float + SampleRange,
 {
-    type Item = X;
+    fn sample<R: Rng>(&mut self, rng: &mut R) -> X {
+        let x = self.x_sample.sample(rng);
+        (self.func)(x) * self.width
+    }
+}
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.sample.next().map(|x| (self.func)(x) * self.width)
+impl<F, X> IndependentSample<X> for Integrate<F, X>
+where
+    F: Fn(X) -> X,
+    X: Float + SampleRange,
+{
+    fn ind_sample<R: Rng>(&self, rng: &mut R) -> X {
+        let x = self.x_sample.ind_sample(rng);
+        (self.func)(x) * self.width
     }
 }
 
@@ -56,10 +65,14 @@ where
 ///
 /// This function integrates via Mone-Carlo methods. `sample_size` is
 /// a measure of the integration precision.
-pub fn integrate<F, X>(f: F, range: Range<X>, sample_size: usize) -> Statistics<X>
+pub fn integrate<F, X, R>(f: F, range: Range<X>, sample_size: usize, rng: &mut R) -> Statistics<X>
 where
     F: FnMut(X) -> X,
     X: Float + SampleRange,
+    R: Rng,
 {
-    Integrate::new(f, range).take(sample_size).collect()
+    Integrate::new(f, range)
+        .into_sample_iter(rng)
+        .take(sample_size)
+        .collect()
 }

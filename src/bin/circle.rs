@@ -6,15 +6,15 @@ extern crate gnuplot;
 use std::iter;
 use std::f64::consts;
 
-use rand::distributions;
+use rand::{thread_rng, Rng, Generator};
 
-use mcgen::{Sample, Statistics};
+use mcgen::{Integrate, IntoSampleIter, SampleIter, Statistics};
 
 
-type F64Range = distributions::Range<f64>;
-type F64PointSample = mcgen::sample::PointSample<f64, F64Range>;
-type Rejection = iter::Map<F64PointSample, fn((f64, f64)) -> f64>;
-type Integration = mcgen::integrate::Integrate<fn(f64) -> f64, f64>;
+type Function1D = fn(f64) -> f64;
+type Function2D = fn((f64, f64)) -> f64;
+type Rejection<'a, R> = iter::Map<Generator<'a, (f64, f64), R>, Function2D>;
+type Integration<'a, R> = SampleIter<'a, f64, Integrate<Function1D, f64>, R>;
 
 
 const SAMPLE_SIZE: usize = 1_000_000;
@@ -171,39 +171,47 @@ fn circle_graph(x: f64) -> f64 {
 }
 
 
-fn get_rejection_pi_calculator() -> Rejection {
-    Sample::from(distributions::Range::new(0.0, 1.0))
-        .as_points()
-        .map(get_point_weight)
+fn get_rejection_pi_calculator<'a, R: Rng>(rng: &'a mut R) -> Rejection<'a, R> {
+    rng.gen_iter().map(get_point_weight)
 }
 
 
-fn get_integration_pi_calculator() -> Integration {
-    mcgen::integrate::Integrate::new(circle_graph, 0.0..1.0)
+fn get_integration_pi_calculator<'a, R: Rng>(rng: &'a mut R) -> Integration<'a, R> {
+    Integrate::new(circle_graph as Function1D, 0.0..1.0).into_sample_iter(rng)
 }
 
 
 fn results_and_time_of_full_run() {
+    let mut rng = thread_rng();
     println!("Integration method:");
     mcgen::print_stats_and_time(
         || {
-            get_integration_pi_calculator()
+            get_integration_pi_calculator(&mut rng)
                 .take(SAMPLE_SIZE)
                 .collect()
         },
     );
     println!();
     println!("Rejection method:");
-    mcgen::print_stats_and_time(|| get_rejection_pi_calculator().take(SAMPLE_SIZE).collect());
+    mcgen::print_stats_and_time(
+        || {
+            get_rejection_pi_calculator(&mut rng)
+                .take(SAMPLE_SIZE)
+                .collect()
+        },
+    );
 }
 
 
 fn make_incremental_plots() {
     // Create vectors for plotting.
+    let mut rng = thread_rng();
+
     let mut integration_data = PlotData::new();
-    integration_data.fill(get_integration_pi_calculator(), consts::PI);
+    integration_data.fill(get_integration_pi_calculator(&mut rng), consts::PI);
     let mut rejection_data = PlotData::new();
-    rejection_data.fill(get_rejection_pi_calculator(), consts::PI);
+    rejection_data.fill(get_rejection_pi_calculator(&mut rng), consts::PI);
+
     PlotData::plot_means(&integration_data, &rejection_data);
     PlotData::plot_abs_errors(&integration_data, &rejection_data);
     PlotData::plot_rel_errors(&integration_data, &rejection_data);

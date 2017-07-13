@@ -1,78 +1,56 @@
-use std::iter;
-
-use itertools;
-use itertools::Itertools;
-
-use rand::{self, ThreadRng};
-use rand::distributions::IndependentSample;
+use rand::Rng;
+use rand::distributions::Sample;
 
 
-/// Helper types for `Sample::batching`.
-pub type BatchingFunc<F, D> = for<'r> fn(&'r mut Sample<F, D>) -> Option<(F, F)>;
-pub type PointSample<F, D> = itertools::Batching<Sample<F, D>, BatchingFunc<F, D>>;
+pub trait IntoSampleIter<Sup>: Sized + Sample<Sup> {
+    fn into_sample_iter<'a, R>(self, rng: &'a mut R) -> SampleIter<'a, Sup, Self, R>
+    where
+        R: 'a + Rng,
+    {
+        SampleIter::new(self, rng)
+    }
+}
+
+impl<S, Sup> IntoSampleIter<Sup> for S
+where
+    S: Sample<Sup>,
+{
+}
 
 
 /// `Iterator` wrapper type around probability distributions.
-pub struct Sample<F, D>
+pub struct SampleIter<'a, Sup, S, R>
 where
-    D: IndependentSample<F>,
+    S: Sample<Sup>,
+    R: 'a + Rng,
 {
-    rng: ThreadRng,
-    dist: D,
-    _dummy: ::std::marker::PhantomData<F>,
+    rng: &'a mut R,
+    sample: S,
+    _dummy: ::std::marker::PhantomData<Sup>,
 }
 
-impl<F, D> Sample<F, D>
+impl<'a, Sup, S, R> SampleIter<'a, Sup, S, R>
 where
-    D: IndependentSample<F>,
+    S: Sample<Sup>,
+    R: 'a + Rng,
 {
-    pub fn new(dist: D) -> Self {
-        Sample {
-            rng: rand::thread_rng(),
-            dist: dist,
+    pub fn new(sample: S, rng: &'a mut R) -> Self {
+        SampleIter {
+            rng,
+            sample,
             _dummy: Default::default(),
         }
     }
-
-    pub fn with_size(dist: D, size: usize) -> iter::Take<Self> {
-        Sample::new(dist).take(size)
-    }
-
-    pub fn get_one(&mut self) -> F {
-        self.dist.ind_sample(&mut self.rng)
-    }
-
-    pub fn get_two(&mut self) -> (F, F) {
-        (self.get_one(), self.get_one())
-    }
-
-    /// Crutch because closure->function pointer coercion is not stable
-    /// yet.
-    fn get_some_two(&mut self) -> Option<(F, F)> {
-        Some(self.get_two())
-    }
-
-    pub fn as_points(self) -> PointSample<F, D> {
-        self.batching(Self::get_some_two)
-    }
 }
 
-impl<F, D> From<D> for Sample<F, D>
+impl<'a, Sup, S, R> Iterator for SampleIter<'a, Sup, S, R>
 where
-    D: IndependentSample<F>,
+    S: Sample<Sup>,
+    R: 'a + Rng,
 {
-    fn from(dist: D) -> Self {
-        Sample::new(dist)
-    }
-}
-
-impl<F, D> Iterator for Sample<F, D>
-where
-    D: IndependentSample<F>,
-{
-    type Item = F;
+    type Item = Sup;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(self.get_one())
+        Some(self.sample.sample(self.rng))
     }
 }
