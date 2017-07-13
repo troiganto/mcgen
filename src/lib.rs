@@ -1,6 +1,5 @@
 extern crate num;
 extern crate rand;
-extern crate itertools;
 extern crate csv;
 extern crate serde;
 extern crate dimensioned;
