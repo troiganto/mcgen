@@ -109,7 +109,10 @@ impl CrossSection for IncoherentCrossSection {
     }
 
     fn max(&self, energy: Joule<f64>) -> Meter2<f64> {
-        self.klein_nishina(energy, Unitless::new(1.0))
+        let max_scatter = *self.scattering_function
+                               .max()
+                               .expect("empty scattering function");
+        self.klein_nishina(energy, Unitless::new(1.0)) * max_scatter
     }
 }
 
