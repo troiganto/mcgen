@@ -143,12 +143,16 @@ impl Histogram {
     pub fn new(nbins: usize, low: f64, high: f64) -> Self {
         let mut low_edges = Vec::with_capacity(nbins);
         let width = (high - low) / (nbins as f64);
-        for i in 0..(nbins-1) {
+        for i in 0..(nbins - 1) {
             low_edges.push(low + width * (i as f64));
         }
         let weights = vec![0; nbins];
         let range = (low, high);
-        Histogram{low_edges, weights, range}
+        Histogram {
+            low_edges,
+            weights,
+            range,
+        }
     }
 
     pub fn fill(&mut self, x: f64) {
@@ -170,7 +174,9 @@ impl Histogram {
 
         let (low, high) = self.range;
         let dx = (high - low) / (self.low_edges.len() as f64);
-        let centers = self.low_edges.iter().map(|low_edge| low_edge + 0.5 * dx);
+        let centers = self.low_edges
+            .iter()
+            .map(|low_edge| low_edge + 0.5 * dx);
 
         let mut hist = gnuplot::Figure::new();
         hist.set_terminal("pdfcairo", filename)
