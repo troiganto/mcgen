@@ -105,8 +105,8 @@ impl PlotData {
         use gnuplot::AutoOption::*;
         use gnuplot::TickOption;
 
-        let mut means = Figure::new();
-        means
+        let mut abs_errors = Figure::new();
+        abs_errors
             .set_terminal("pdfcairo", "abs_errors.pdf")
             .axes2d()
             .set_x_label("Sample size", &[])
@@ -127,7 +127,7 @@ impl PlotData {
                 &second.mean_uncertainties,
                 &[Color("red"), Caption("Rejection method")],
             );
-        means.show();
+        abs_errors.show();
     }
 
     pub fn plot_rel_errors(first: &Self, second: &Self) {
@@ -136,8 +136,8 @@ impl PlotData {
         use gnuplot::AutoOption::*;
         use gnuplot::TickOption;
 
-        let mut means = Figure::new();
-        means
+        let mut rel_errors = Figure::new();
+        rel_errors
             .set_terminal("pdfcairo", "rel_errors.pdf")
             .axes2d()
             .set_x_label("Sample size", &[])
@@ -156,7 +156,7 @@ impl PlotData {
                 &second.rel_errors,
                 &[Color("red"), Caption("Rejection method")],
             );
-        means.show();
+        rel_errors.show();
     }
 }
 
