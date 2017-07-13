@@ -118,5 +118,5 @@ where
     let mut stats = Statistics::default();
     let secs = time::measure_seconds(|| stats = func());
     println!("{}", stats);
-    println!("time: {:.3} s", secs);
+    println!("time: {:.3}", secs);
 }
