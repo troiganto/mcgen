@@ -5,6 +5,7 @@ use num;
 use rand::Rng;
 use rand::distributions::range::SampleRange;
 use rand::distributions::{self, Sample, IndependentSample};
+use dimensioned::traits::Sqrt;
 
 use super::{IntoSampleIter, Collectible, Statistics};
 
@@ -79,7 +80,7 @@ where
     F: FnMut(X) -> Y,
     X: Copy + SampleRange + PartialOrd + ops::Sub<Output = X>,
     Y: ops::Mul<X>,
-    Y::Output: Collectible + num::Float,
+    Y::Output: Collectible + num::Float + Sqrt<Output = Y::Output>,
     R: Rng,
 {
     Integrate::new(f, range)

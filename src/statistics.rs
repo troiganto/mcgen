@@ -3,6 +3,7 @@ use std::iter::FromIterator;
 use std::fmt::{self, Debug, Display};
 
 use num::Float;
+use dimensioned::traits::Sqrt;
 
 
 pub trait Primitive: Copy + Default + Debug {}
@@ -10,25 +11,45 @@ pub trait Primitive: Copy + Default + Debug {}
 impl<T: Copy + Default + Debug> Primitive for T {}
 
 
+pub trait Cumulable
+where
+    Self: Sized + Add<Output = Self> + Sub<Output = Self> + Div<f64, Output = Self>
+{
+}
+
+impl<T> Cumulable for T
+where
+    T: Sized + Add<Output = Self> + Sub<Output = Self> + Div<f64, Output = Self>,
+{
+}
+
+
+pub trait SquareOf<R>
+where
+    Self: Primitive + Cumulable + Sqrt<Output = R>
+{
+}
+
+impl<R, T> SquareOf<R> for T
+where
+    T: Primitive + Cumulable + Sqrt<Output = R>,
+{
+}
+
 pub trait Collectible
 where
-    Self: Primitive
-        + Add<Output=Self>
-        + Sub<Output=Self>
-        + Mul<Output=Self>
-        + Div<f64, Output = Self>
+    Self: Primitive + Cumulable + Mul,
+    <Self as Mul>::Output: SquareOf<Self>
 {
 }
 
 impl<T> Collectible for T
 where
-    T: Primitive
-        + Add<Output=T>
-        + Sub<Output=T>
-        + Mul<Output=T>
-        + Div<f64, Output = T>,
+    Self: Primitive + Cumulable + Mul<Output = Self>,
+    <Self as Mul>::Output: SquareOf<Self>,
 {
 }
+
 
 /// Counter-like type to calculate statistics on a sample.
 ///
@@ -41,15 +62,16 @@ where
 pub struct Statistics<F>
 where
     F: Collectible,
+    <F as Mul>::Output: SquareOf<F>,
 {
     count: u32,
     mean: F,
-    sum_of_squares: F,
+    sum_of_squares: <F as Mul>::Output,
 }
 
 impl<F> Statistics<F>
 where
-    F: Float + Collectible,
+    F: Float + Collectible + Sqrt<Output = F>,
 {
     pub fn new() -> Self {
         Default::default()
@@ -94,19 +116,19 @@ where
     }
 
     pub fn standard_deviation(&self) -> Option<F> {
-        self.variance().map(F::sqrt)
+        self.variance().map(Sqrt::sqrt)
     }
 
     pub fn error_of_mean(&self) -> Option<F> {
         self.variance()
             .map(|v| v / self.count as f64)
-            .map(F::sqrt)
+            .map(Sqrt::sqrt)
     }
 }
 
 impl<F> Display for Statistics<F>
 where
-    F: Float + Collectible + Display,
+    F: Float + Collectible + Sqrt<Output = F> + Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -122,7 +144,7 @@ where
 
 impl<F> FromIterator<F> for Statistics<F>
 where
-    F: Float + Collectible,
+    F: Float + Collectible + Sqrt<Output = F>,
 {
     fn from_iter<T>(iter: T) -> Self
     where
@@ -136,7 +158,7 @@ where
 /// Prints statistics and execution time of a process.
 pub fn print_stats_and_time<F, Func>(func: Func)
 where
-    F: Float + Collectible + Display,
+    F: Float + Collectible + Sqrt<Output = F> + Display,
     Func: FnOnce() -> Statistics<F>,
 {
     use super::time;
