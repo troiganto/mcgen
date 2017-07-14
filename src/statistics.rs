@@ -12,13 +12,21 @@ impl<T: Copy + Default + Debug> Primitive for T {}
 
 pub trait Collectible
 where
-    Self: Primitive + Add + Sub + Mul + Div<f64, Output = Self>
+    Self: Primitive
+        + Add<Output=Self>
+        + Sub<Output=Self>
+        + Mul<Output=Self>
+        + Div<f64, Output = Self>
 {
 }
 
 impl<T> Collectible for T
 where
-    T: Primitive + Add + Sub + Mul + Div<f64, Output = T>,
+    T: Primitive
+        + Add<Output=T>
+        + Sub<Output=T>
+        + Mul<Output=T>
+        + Div<f64, Output = T>,
 {
 }
 
@@ -77,20 +85,22 @@ where
         self.mean
     }
 
-    pub fn variance(&self) -> F {
-        if self.count < 2 {
-            F::nan()
+    pub fn variance(&self) -> Option<F> {
+        if self.count > 1 {
+            Some(self.sum_of_squares / (self.count - 1) as f64)
         } else {
-            self.sum_of_squares / (self.count - 1) as f64
+            None
         }
     }
 
-    pub fn standard_deviation(&self) -> F {
-        self.variance().sqrt()
+    pub fn standard_deviation(&self) -> Option<F> {
+        self.variance().map(F::sqrt)
     }
 
-    pub fn error_of_mean(&self) -> F {
-        (self.variance() / self.count as f64).sqrt()
+    pub fn error_of_mean(&self) -> Option<F> {
+        self.variance()
+            .map(|v| v / self.count as f64)
+            .map(F::sqrt)
     }
 }
 
@@ -103,8 +113,9 @@ where
             f,
             "Mean: {0:.5} ± {1:.5}\nStandard deviation: {2:.5}",
             self.mean(),
-            self.error_of_mean(),
+            self.error_of_mean().expect("cannot calculate variance"),
             self.standard_deviation()
+                .expect("cannot calculate variance")
         )
     }
 }

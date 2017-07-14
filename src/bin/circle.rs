@@ -54,7 +54,8 @@ impl PlotData {
             stats.add_sample(sample.by_ref().take(epoch - data_taken));
             data_taken = *epoch;
             self.means.push(stats.mean());
-            self.mean_uncertainties.push(stats.error_of_mean());
+            self.mean_uncertainties
+                .push(stats.error_of_mean().expect("not enough data"));
             self.abs_errors.push(stats.mean() - target);
             self.rel_errors.push(stats.mean() / target - 1.0);
         }
