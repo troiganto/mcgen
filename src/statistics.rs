@@ -1,8 +1,8 @@
 use std::ops::*;
-use std::iter::FromIterator;
+use std::iter::{Extend, FromIterator};
 use std::fmt::{self, Debug, Display};
 
-use dimensioned::traits::Sqrt;
+pub use dimensioned::traits::Sqrt;
 
 
 pub trait Primitive: Copy + Default + Debug {}
@@ -12,40 +12,13 @@ impl<T: Copy + Default + Debug> Primitive for T {}
 
 pub trait Cumulable
 where
-    Self: Sized + Add<Output = Self> + Sub<Output = Self> + Div<f64, Output = Self>
+    Self: Primitive + Add<Output = Self> + Sub<Output = Self> + Div<f64, Output = Self>
 {
 }
 
 impl<T> Cumulable for T
 where
-    T: Sized + Add<Output = Self> + Sub<Output = Self> + Div<f64, Output = Self>,
-{
-}
-
-
-pub trait Square
-where
-    Self: Primitive + Cumulable + Sqrt
-{
-}
-
-impl<T> Square for T
-where
-    T: Primitive + Cumulable + Sqrt,
-{
-}
-
-pub trait Collectible
-where
-    Self: Primitive + Cumulable + Mul,
-    <Self as Mul>::Output: Square
-{
-}
-
-impl<T> Collectible for T
-where
-    Self: Primitive + Cumulable + Mul<Output = Self>,
-    <Self as Mul>::Output: Square,
+    T: Primitive + Add<Output = Self> + Sub<Output = Self> + Div<f64, Output = Self>,
 {
 }
 
@@ -60,8 +33,8 @@ where
 #[derive(Clone, Debug, Default)]
 pub struct Statistics<F>
 where
-    F: Primitive + Mul,
-    <F as Mul>::Output: Primitive,
+    F: Cumulable + Mul,
+    <F as Mul>::Output: Cumulable,
 {
     count: u32,
     mean: F,
@@ -70,32 +43,14 @@ where
 
 impl<F> Statistics<F>
 where
-    F: Collectible,
-    <F as Mul>::Output: Square,
+    F: Cumulable + Mul,
+    <F as Mul>::Output: Cumulable,
 {
     pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn from_sample<I>(sample: I) -> Self
-    where
-        I: IntoIterator<Item = F>,
-    {
-        let mut result = Self::new();
-        result.add_sample(sample);
-        result
-    }
-
-    pub fn add_sample<I>(&mut self, sample: I)
-    where
-        I: IntoIterator<Item = F>,
-    {
-        for point in sample {
-            self.add(point);
-        }
-    }
-
-    pub fn add(&mut self, sample: F) {
+    pub fn push(&mut self, sample: F) {
         self.count += 1;
         let delta = sample - self.mean;
         self.mean = self.mean + delta / self.count as f64;
@@ -114,7 +69,13 @@ where
             None
         }
     }
+}
 
+impl<F> Statistics<F>
+where
+    F: Cumulable + Mul,
+    <F as Mul>::Output: Cumulable + Sqrt,
+{
     pub fn standard_deviation(&self) -> Option<<<F as Mul>::Output as Sqrt>::Output> {
         self.variance().map(Sqrt::sqrt)
     }
@@ -128,8 +89,8 @@ where
 
 impl<F> Display for Statistics<F>
 where
-    F: Collectible + Display,
-    <F as Mul>::Output: Square,
+    F: Cumulable + Mul + Display,
+    <F as Mul>::Output: Cumulable + Sqrt,
     <<F as Mul>::Output as Sqrt>::Output: Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -144,16 +105,33 @@ where
     }
 }
 
+impl<F> Extend<F> for Statistics<F>
+where
+    F: Cumulable + Mul,
+    <F as Mul>::Output: Cumulable,
+{
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = F>,
+    {
+        for point in iter {
+            self.push(point);
+        }
+    }
+}
+
 impl<F> FromIterator<F> for Statistics<F>
 where
-    F: Collectible,
-    <F as Mul>::Output: Square,
+    F: Cumulable + Mul,
+    <F as Mul>::Output: Cumulable,
 {
     fn from_iter<T>(iter: T) -> Self
     where
         T: IntoIterator<Item = F>,
     {
-        Statistics::from_sample(iter)
+        let mut result = Self::new();
+        result.extend(iter);
+        result
     }
 }
 
@@ -161,8 +139,8 @@ where
 /// Prints statistics and execution time of a process.
 pub fn print_stats_and_time<F, Func>(func: Func)
 where
-    F: Collectible + Display,
-    <F as Mul>::Output: Square,
+    F: Cumulable + Mul + Display,
+    <F as Mul>::Output: Cumulable + Sqrt,
     <<F as Mul>::Output as Sqrt>::Output: Display,
     Func: FnOnce() -> Statistics<F>,
 {

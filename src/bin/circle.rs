@@ -51,7 +51,7 @@ impl PlotData {
         let mut data_taken = 0;
         let mut stats = Statistics::new();
         for epoch in &self.epochs {
-            stats.add_sample(sample.by_ref().take(epoch - data_taken));
+            stats.extend(sample.by_ref().take(epoch - data_taken));
             data_taken = *epoch;
             self.means.push(stats.mean());
             self.mean_uncertainties
