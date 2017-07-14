@@ -1,32 +1,50 @@
+use std::ops::*;
 use std::iter::FromIterator;
-use std::fmt::{self, Display};
+use std::fmt::{self, Debug, Display};
 
 use num::Float;
 
+
+pub trait Primitive: Copy + Default + Debug {}
+
+impl<T: Copy + Default + Debug> Primitive for T {}
+
+
+pub trait Collectible
+where
+    Self: Primitive + Add + Sub + Mul + Div<f64, Output = Self>
+{
+}
+
+impl<T> Collectible for T
+where
+    T: Primitive + Add + Sub + Mul + Div<f64, Output = T>,
+{
+}
 
 /// Counter-like type to calculate statistics on a sample.
 ///
 /// that allows calculating the mean, standard deviation and standard
 /// error of the mean
 /// in an incremental manner.
-/// The algorithm has been copied from [Wikipedia][].
-///
-/// https://en.wikipedia.
-/// org/wiki/Algorithms_for_calculating_variance#Online_algorithm
-#[derive(Clone, Debug)]
-pub struct Statistics<F> {
-    count: usize,
+/// The algorithm has been copied from Wikipedia:
+/// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+#[derive(Clone, Debug, Default)]
+pub struct Statistics<F>
+where
+    F: Collectible,
+{
+    count: u32,
     mean: F,
     sum_of_squares: F,
 }
 
-impl<F: Float> Statistics<F> {
+impl<F> Statistics<F>
+where
+    F: Float + Collectible,
+{
     pub fn new() -> Self {
-        Statistics {
-            count: 0,
-            mean: F::zero(),
-            sum_of_squares: F::zero(),
-        }
+        Default::default()
     }
 
     pub fn from_sample<I>(sample: I) -> Self
@@ -50,7 +68,7 @@ impl<F: Float> Statistics<F> {
     pub fn add(&mut self, sample: F) {
         self.count += 1;
         let delta = sample - self.mean;
-        self.mean = self.mean + delta / Self::to_float(self.count);
+        self.mean = self.mean + delta / self.count as f64;
         let delta_2 = sample - self.mean;
         self.sum_of_squares = self.sum_of_squares + delta * delta_2;
     }
@@ -63,7 +81,7 @@ impl<F: Float> Statistics<F> {
         if self.count < 2 {
             F::nan()
         } else {
-            self.sum_of_squares / Self::to_float(self.count - 1)
+            self.sum_of_squares / (self.count - 1) as f64
         }
     }
 
@@ -72,21 +90,14 @@ impl<F: Float> Statistics<F> {
     }
 
     pub fn error_of_mean(&self) -> F {
-        (self.variance() / Self::to_float(self.count)).sqrt()
-    }
-
-    fn to_float(n: usize) -> F {
-        F::from(n).expect("cast usize to Float")
+        (self.variance() / self.count as f64).sqrt()
     }
 }
 
-impl<F: Float> Default for Statistics<F> {
-    fn default() -> Self {
-        Statistics::new()
-    }
-}
-
-impl<F: Float + Display> Display for Statistics<F> {
+impl<F> Display for Statistics<F>
+where
+    F: Float + Collectible + Display,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -98,7 +109,10 @@ impl<F: Float + Display> Display for Statistics<F> {
     }
 }
 
-impl<F: Float> FromIterator<F> for Statistics<F> {
+impl<F> FromIterator<F> for Statistics<F>
+where
+    F: Float + Collectible,
+{
     fn from_iter<T>(iter: T) -> Self
     where
         T: IntoIterator<Item = F>,
@@ -111,7 +125,7 @@ impl<F: Float> FromIterator<F> for Statistics<F> {
 /// Prints statistics and execution time of a process.
 pub fn print_stats_and_time<F, Func>(func: Func)
 where
-    F: Float + Display,
+    F: Float + Collectible + Display,
     Func: FnOnce() -> Statistics<F>,
 {
     use super::time;
