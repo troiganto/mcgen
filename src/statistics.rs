@@ -23,29 +23,29 @@ where
 }
 
 
-pub trait SquareOf<R>
+pub trait Square
 where
-    Self: Primitive + Cumulable + Sqrt<Output = R>
+    Self: Primitive + Cumulable + Sqrt
 {
 }
 
-impl<R, T> SquareOf<R> for T
+impl<T> Square for T
 where
-    T: Primitive + Cumulable + Sqrt<Output = R>,
+    T: Primitive + Cumulable + Sqrt,
 {
 }
 
 pub trait Collectible
 where
     Self: Primitive + Cumulable + Mul,
-    <Self as Mul>::Output: SquareOf<Self>
+    <Self as Mul>::Output: Square
 {
 }
 
 impl<T> Collectible for T
 where
     Self: Primitive + Cumulable + Mul<Output = Self>,
-    <Self as Mul>::Output: SquareOf<Self>,
+    <Self as Mul>::Output: Square,
 {
 }
 
@@ -71,7 +71,7 @@ where
 impl<F> Statistics<F>
 where
     F: Collectible,
-    <F as Mul>::Output: SquareOf<F>,
+    <F as Mul>::Output: Square,
 {
     pub fn new() -> Self {
         Default::default()
@@ -129,7 +129,8 @@ where
 impl<F> Display for Statistics<F>
 where
     F: Collectible + Display,
-    <F as Mul>::Output: SquareOf<F>,
+    <F as Mul>::Output: Square,
+    <<F as Mul>::Output as Sqrt>::Output: Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -146,7 +147,7 @@ where
 impl<F> FromIterator<F> for Statistics<F>
 where
     F: Collectible,
-    <F as Mul>::Output: SquareOf<F>,
+    <F as Mul>::Output: Square,
 {
     fn from_iter<T>(iter: T) -> Self
     where
@@ -161,7 +162,8 @@ where
 pub fn print_stats_and_time<F, Func>(func: Func)
 where
     F: Collectible + Display,
-    <F as Mul>::Output: SquareOf<F>,
+    <F as Mul>::Output: Square,
+    <<F as Mul>::Output as Sqrt>::Output: Display,
     Func: FnOnce() -> Statistics<F>,
 {
     use super::time;

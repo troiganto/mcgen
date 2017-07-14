@@ -14,7 +14,7 @@ pub mod crosssection;
 
 pub mod mc;
 
-pub use statistics::{Collectible, SquareOf, Statistics, print_stats_and_time};
+pub use statistics::{Collectible, Square, Statistics, print_stats_and_time};
 pub use sample::{IntoSampleIter, SampleIter};
 pub use integrate::{integrate, Integrate};
 pub use function::Function;
