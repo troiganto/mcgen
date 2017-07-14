@@ -60,8 +60,8 @@ where
 #[derive(Clone, Debug, Default)]
 pub struct Statistics<F>
 where
-    F: Collectible,
-    <F as Mul>::Output: SquareOf<F>,
+    F: Primitive + Mul,
+    <F as Mul>::Output: Primitive,
 {
     count: u32,
     mean: F,
@@ -70,7 +70,8 @@ where
 
 impl<F> Statistics<F>
 where
-    F: Collectible + Mul<Output = F> + Sqrt<Output = F>,
+    F: Collectible,
+    <F as Mul>::Output: SquareOf<F>,
 {
     pub fn new() -> Self {
         Default::default()
@@ -106,7 +107,7 @@ where
         self.mean
     }
 
-    pub fn variance(&self) -> Option<F> {
+    pub fn variance(&self) -> Option<<F as Mul>::Output> {
         if self.count > 1 {
             Some(self.sum_of_squares / (self.count - 1) as f64)
         } else {
@@ -114,11 +115,11 @@ where
         }
     }
 
-    pub fn standard_deviation(&self) -> Option<F> {
+    pub fn standard_deviation(&self) -> Option<<<F as Mul>::Output as Sqrt>::Output> {
         self.variance().map(Sqrt::sqrt)
     }
 
-    pub fn error_of_mean(&self) -> Option<F> {
+    pub fn error_of_mean(&self) -> Option<<<F as Mul>::Output as Sqrt>::Output> {
         self.variance()
             .map(|v| v / self.count as f64)
             .map(Sqrt::sqrt)
@@ -127,7 +128,8 @@ where
 
 impl<F> Display for Statistics<F>
 where
-    F: Collectible + Mul<Output = F> + Sqrt<Output = F> + Display,
+    F: Collectible + Display,
+    <F as Mul>::Output: SquareOf<F>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -143,7 +145,8 @@ where
 
 impl<F> FromIterator<F> for Statistics<F>
 where
-    F: Collectible + Mul<Output = F> + Sqrt<Output = F>,
+    F: Collectible,
+    <F as Mul>::Output: SquareOf<F>,
 {
     fn from_iter<T>(iter: T) -> Self
     where
@@ -157,7 +160,8 @@ where
 /// Prints statistics and execution time of a process.
 pub fn print_stats_and_time<F, Func>(func: Func)
 where
-    F: Collectible + Mul<Output = F> + Sqrt<Output = F> + Display,
+    F: Collectible + Display,
+    <F as Mul>::Output: SquareOf<F>,
     Func: FnOnce() -> Statistics<F>,
 {
     use super::time;
