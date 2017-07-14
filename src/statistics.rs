@@ -2,7 +2,6 @@ use std::ops::*;
 use std::iter::FromIterator;
 use std::fmt::{self, Debug, Display};
 
-use num::Float;
 use dimensioned::traits::Sqrt;
 
 
@@ -71,7 +70,7 @@ where
 
 impl<F> Statistics<F>
 where
-    F: Float + Collectible + Sqrt<Output = F>,
+    F: Collectible + Mul<Output = F> + Sqrt<Output = F>,
 {
     pub fn new() -> Self {
         Default::default()
@@ -128,7 +127,7 @@ where
 
 impl<F> Display for Statistics<F>
 where
-    F: Float + Collectible + Sqrt<Output = F> + Display,
+    F: Collectible + Mul<Output = F> + Sqrt<Output = F> + Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -144,7 +143,7 @@ where
 
 impl<F> FromIterator<F> for Statistics<F>
 where
-    F: Float + Collectible + Sqrt<Output = F>,
+    F: Collectible + Mul<Output = F> + Sqrt<Output = F>,
 {
     fn from_iter<T>(iter: T) -> Self
     where
@@ -158,7 +157,7 @@ where
 /// Prints statistics and execution time of a process.
 pub fn print_stats_and_time<F, Func>(func: Func)
 where
-    F: Float + Collectible + Sqrt<Output = F> + Display,
+    F: Collectible + Mul<Output = F> + Sqrt<Output = F> + Display,
     Func: FnOnce() -> Statistics<F>,
 {
     use super::time;

@@ -1,7 +1,6 @@
 use std::ops;
 use std::cmp::PartialOrd;
 
-use num;
 use rand::Rng;
 use rand::distributions::range::SampleRange;
 use rand::distributions::{self, Sample, IndependentSample};
@@ -80,7 +79,7 @@ where
     F: FnMut(X) -> Y,
     X: Copy + SampleRange + PartialOrd + ops::Sub<Output = X>,
     Y: ops::Mul<X>,
-    Y::Output: Collectible + num::Float + Sqrt<Output = Y::Output>,
+    Y::Output: Collectible + ops::Mul<Output = Y::Output> + Sqrt<Output = Y::Output>,
     R: Rng,
 {
     Integrate::new(f, range)
