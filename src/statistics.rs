@@ -12,13 +12,13 @@ impl<T: Copy + Default + Debug> Primitive for T {}
 
 pub trait Cumulable
 where
-    Self: Primitive + Add<Output = Self> + Sub<Output = Self> + Div<f64, Output = Self>
+    Self: Primitive + AddAssign + Sub<Output = Self> + Div<f64, Output = Self>
 {
 }
 
 impl<T> Cumulable for T
 where
-    T: Primitive + Add<Output = Self> + Sub<Output = Self> + Div<f64, Output = Self>,
+    T: Primitive + AddAssign + Sub<Output = Self> + Div<f64, Output = Self>,
 {
 }
 
@@ -53,9 +53,9 @@ where
     pub fn push(&mut self, sample: F) {
         self.count += 1;
         let delta = sample - self.mean;
-        self.mean = self.mean + delta / self.count as f64;
+        self.mean += delta / self.count as f64;
         let delta_2 = sample - self.mean;
-        self.sum_of_squares = self.sum_of_squares + delta * delta_2;
+        self.sum_of_squares += delta * delta_2;
     }
 
     pub fn mean(&self) -> F {
