@@ -11,8 +11,10 @@ use super::{IntoSampleIter, Stat, Statistics};
 /// Struct for Monte-Carlo integration of 1D real functions.
 ///
 /// This struct is exposed to allow continuous inspection of
-/// the integration result and uncertainty. To just get the result
-/// immediately, use the function `integrate`.
+/// the integration result and uncertainty via `Statistics`.
+///
+/// For the general use case, where you just just want the result
+/// of the integration, use the function `integrate()`.
 pub struct Integrate<F, X, Y = X>
 where
     F: FnMut(X) -> Y,
@@ -30,6 +32,7 @@ where
     X: Copy + SampleRange + PartialOrd + ops::Sub<Output = X>,
     Y: ops::Mul<X>,
 {
+    /// Creates a new object that integrates `f` in the given `range`.
     pub fn new(f: F, range: ops::Range<X>) -> Self {
         Integrate {
             func: f,
@@ -66,14 +69,19 @@ where
 
 /// Integrates a function `f(x)` in a given `range`.
 ///
-/// This function integrates via Mone-Carlo methods. `sample_size` is
-/// a measure of the integration precision.
+/// The argument `sample_size` specifies how many iterations should be
+/// done to get the integration result. `rng` is used as a source of
+/// randomness.
+///
+/// The returned `Statistics` object provides the integration result
+/// via its `mean()` method. The integration precision is given by the
+/// method `error_of_mean()`.
 pub fn integrate<F, X, Y, R>(
     f: F,
     range: ops::Range<X>,
     sample_size: usize,
     rng: &mut R,
-) -> Statistics<<Y as ops::Mul<X>>::Output>
+) -> Statistics<Y::Output>
 where
     F: FnMut(X) -> Y,
     X: Copy + SampleRange + PartialOrd + ops::Sub<Output = X>,
