@@ -5,94 +5,191 @@ use std::fmt::{self, Debug, Display};
 pub use dimensioned::traits::Sqrt;
 
 
+/// A trait alias that specifies all bounds required to store a
+/// variable in a `Statistics` variable.
+///
+/// The bounds are necessary to auto-derive `Clone`, `Default`, and
+/// `Debug`. The purpose of this trait is to simplify the signature
+/// of the next-higher trait alias, `Cumulable`.
 pub trait Primitive: Copy + Default + Debug {}
 
 impl<T: Copy + Default + Debug> Primitive for T {}
 
 
+/// The trait of all types that can be accumulated.
+///
+/// This is a trait alias that greatly simplifies the signature of
+/// `Stat`. It is implemented for all types that support addition,
+/// substraction, and multiplication-by-scalar without changing their
+/// type.
 pub trait Cumulable
 where
-    Self: Primitive + AddAssign + Sub<Output = Self> + Div<f64, Output = Self>
+    Self: Sized + AddAssign + Sub<Output = Self> + Div<f64, Output = Self>
 {
 }
 
 impl<T> Cumulable for T
 where
-    T: Primitive + AddAssign + Sub<Output = Self> + Div<f64, Output = Self>,
+    T: Sized + AddAssign + Sub<Output = Self> + Div<f64, Output = Self>,
 {
 }
 
+
+/// Trait of all requirements for a type to be fed to `Statistics`.
+///
+/// Broadly speaking, a type must support the following operations:
+/// * we must be able to accumulate it (for the mean);
+/// * we must be able to accumulate its squares (for the variance);
+/// * we must be able to get the square root of the variance.
+///
+/// This is expressed by the bounds on `Self` and `Variance`.
+pub trait Stat: Primitive + Cumulable {
+    type Variance: Primitive + Cumulable + Sqrt<Output = Self::StdDev>;
+    type StdDev;
+
+    /// Connects `Self::Variance` with `Self`.
+    ///
+    /// Ideally, this simply multiplies `d1` and `d2`.
+    fn mul(d1: Self, d2: Self) -> Self::Variance;
+
+    /// Connects `Self::StdDev` with `Self::Variance`.
+    ///
+    /// Ideally, this simply takes the square root of `v`.
+    fn sqrt(v: Self::Variance) -> Self::StdDev;
+}
+
+impl<T> Stat for T
+where
+    T: Primitive + Cumulable + Mul,
+    <T as Mul>::Output: Primitive + Cumulable + Sqrt,
+{
+    type Variance = <Self as Mul>::Output;
+    type StdDev = <Self::Variance as Sqrt>::Output;
+
+    fn mul(d1: Self, d2: Self) -> Self::Variance {
+        d1 * d2
+    }
+
+    fn sqrt(v: Self::Variance) -> Self::StdDev {
+        v.sqrt()
+    }
+}
 
 /// Counter-like type to calculate statistics on a sample.
 ///
-/// that allows calculating the mean, standard deviation and standard
-/// error of the mean
-/// in an incremental manner.
+/// This type allows calculating the mean, standard deviation and
+/// standard error of the mean in an incremental manner.
+///
 /// The algorithm has been copied from Wikipedia:
 /// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
 #[derive(Clone, Debug, Default)]
-pub struct Statistics<F>
-where
-    F: Cumulable + Mul,
-    <F as Mul>::Output: Cumulable,
-{
+pub struct Statistics<X: Stat> {
     count: u32,
-    mean: F,
-    sum_of_squares: <F as Mul>::Output,
+    mean: X,
+    sum_of_squares: X::Variance,
 }
 
-impl<F> Statistics<F>
-where
-    F: Cumulable + Mul,
-    <F as Mul>::Output: Cumulable,
-{
+impl<X: Stat> Statistics<X> {
+    /// Creates a new, empty `Statistics` object.
     pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn push(&mut self, sample: F) {
+    /// Takes a new sample point into consideration.
+    pub fn push(&mut self, x: X) {
+        // Update the counter.
         self.count += 1;
-        let delta = sample - self.mean;
+        // Update the mean.
+        let delta = x - self.mean;
         self.mean += delta / self.count as f64;
-        let delta_2 = sample - self.mean;
-        self.sum_of_squares += delta * delta_2;
+        // Update the sum of squares.
+        let delta_2 = x - self.mean;
+        self.sum_of_squares += X::mul(delta, delta_2);
     }
 
-    pub fn mean(&self) -> F {
+    /// Returns the empirical mean of the sample.
+    ///
+    /// An empty `Statistics` object returns the default value of the
+    /// sample type.
+    pub fn mean(&self) -> X {
         self.mean
     }
 
-    pub fn variance(&self) -> Option<<F as Mul>::Output> {
+    /// Returns the empirical (unbiased) variance of the sample.
+    ///
+    /// At least two sample points must have been `push`ed to calculate
+    /// the variance. If enough data is available, this function
+    /// returns `Some(variance)`, otherwise `None` is returned.
+    pub fn variance(&self) -> Option<X::Variance> {
         if self.count > 1 {
+            // Subtract one from `count` to get an unbiased estimator
+            // for the variance.
             Some(self.sum_of_squares / (self.count - 1) as f64)
         } else {
             None
         }
     }
-}
 
-impl<F> Statistics<F>
-where
-    F: Cumulable + Mul,
-    <F as Mul>::Output: Cumulable + Sqrt,
-{
-    pub fn standard_deviation(&self) -> Option<<<F as Mul>::Output as Sqrt>::Output> {
-        self.variance().map(Sqrt::sqrt)
+    /// Returns the biased standard deviation of the sample.
+    ///
+    /// This simply returns the square root of the variance. While
+    /// `variance()` is an unbiased estimator, the square root as a
+    /// concave function re-introduces a slight bias. This can
+    /// typically be ignored for sample sizes larger than a few dozen.
+    ///
+    /// If more than two samples have been `push`ed, this returns
+    /// `Some(standard_deviation)`, otherwise `None` is returned.
+    pub fn standard_deviation(&self) -> Option<X::StdDev> {
+        self.variance().map(X::sqrt)
     }
 
-    pub fn error_of_mean(&self) -> Option<<<F as Mul>::Output as Sqrt>::Output> {
+    /// Returns the biased standard error of the mean of the sample.
+    ///
+    /// This estimator for the standard deviation of the mean of the
+    /// sample is biased in the same way as the standard deviation.
+    ///
+    /// If more than two samples have been `push`ed, this returns
+    /// `Some(uncertainty)`, otherwise `None` is returned.
+    pub fn error_of_mean(&self) -> Option<X::StdDev> {
         self.variance()
             .map(|v| v / self.count as f64)
-            .map(Sqrt::sqrt)
+            .map(X::sqrt)
     }
 }
 
-impl<F> Display for Statistics<F>
+impl<X: Stat> Extend<X> for Statistics<X> {
+    /// Successively `push`es all elements of the iterator to `self`.
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = X>,
+    {
+        for point in iter {
+            self.push(point);
+        }
+    }
+}
+
+impl<X: Stat> FromIterator<X> for Statistics<X> {
+    /// Calculates the statistics of the sample provided by the
+    /// iterator `iter`.
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = X>,
+    {
+        let mut result = Self::new();
+        result.extend(iter);
+        result
+    }
+}
+
+
+impl<X> Display for Statistics<X>
 where
-    F: Cumulable + Mul + Display,
-    <F as Mul>::Output: Cumulable + Sqrt,
-    <<F as Mul>::Output as Sqrt>::Output: Display,
+    X: Stat + Display,
+    X::Variance: Display,
+    X::StdDev: Display,
 {
+    /// Displays the calculated statistics on two lines.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -105,47 +202,16 @@ where
     }
 }
 
-impl<F> Extend<F> for Statistics<F>
-where
-    F: Cumulable + Mul,
-    <F as Mul>::Output: Cumulable,
-{
-    fn extend<T>(&mut self, iter: T)
-    where
-        T: IntoIterator<Item = F>,
-    {
-        for point in iter {
-            self.push(point);
-        }
-    }
-}
-
-impl<F> FromIterator<F> for Statistics<F>
-where
-    F: Cumulable + Mul,
-    <F as Mul>::Output: Cumulable,
-{
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = F>,
-    {
-        let mut result = Self::new();
-        result.extend(iter);
-        result
-    }
-}
-
-
 /// Prints statistics and execution time of a process.
-pub fn print_stats_and_time<F, Func>(func: Func)
+pub fn print_stats_and_time<X, Func>(func: Func)
 where
-    F: Cumulable + Mul + Display,
-    <F as Mul>::Output: Cumulable + Sqrt,
-    <<F as Mul>::Output as Sqrt>::Output: Display,
-    Func: FnOnce() -> Statistics<F>,
+    X: Stat + Display,
+    X::Variance: Display,
+    X::StdDev: Display,
+    Func: FnOnce() -> Statistics<X>,
 {
     use super::time;
-    let mut stats = Statistics::default();
+    let mut stats = Statistics::new();
     let secs = time::measure_seconds(|| stats = func());
     println!("{}", stats);
     println!("time: {:.3}", secs);

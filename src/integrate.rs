@@ -5,7 +5,7 @@ use rand::Rng;
 use rand::distributions::range::SampleRange;
 use rand::distributions::{self, Sample, IndependentSample};
 
-use super::{IntoSampleIter, Cumulable, Sqrt, Statistics};
+use super::{IntoSampleIter, Stat, Statistics};
 
 
 /// Struct for Monte-Carlo integration of 1D real functions.
@@ -78,8 +78,7 @@ where
     F: FnMut(X) -> Y,
     X: Copy + SampleRange + PartialOrd + ops::Sub<Output = X>,
     Y: ops::Mul<X>,
-    Y::Output: Cumulable + ops::Mul,
-    <Y::Output as ops::Mul>::Output: Cumulable + Sqrt,
+    Y::Output: Stat,
     R: Rng,
 {
     Integrate::new(f, range)
