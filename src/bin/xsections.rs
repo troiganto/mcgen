@@ -102,7 +102,7 @@ fn handle_cross_section<XS>(
             plot_histogram(filename, x, y);
         },
     );
-    println!("{:.2} s", secs);
+    println!("{:.2}", secs);
 }
 
 fn main() {
