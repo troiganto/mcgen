@@ -1,4 +1,3 @@
-extern crate num;
 extern crate rand;
 extern crate mcgen;
 extern crate gnuplot;

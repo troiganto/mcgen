@@ -1,5 +1,3 @@
-use num::Float;
-
 use rand::{Rand, Rng};
 use rand::distributions::{self, IndependentSample};
 
@@ -94,7 +92,7 @@ impl Direction {
 
 impl Rand for Direction {
     fn rand<R: Rng>(rng: &mut R) -> Self {
-        let dist = distributions::Range::new(-1.0, 1.0);
+        let dist = distributions::Range::new(-1.0f64, 1.0f64);
         let dx = dist.ind_sample(rng);
         let mut dy = dx.acos().sin();
         if rng.gen::<bool>() {

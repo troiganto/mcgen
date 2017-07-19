@@ -1,4 +1,3 @@
-extern crate num;
 extern crate rand;
 extern crate csv;
 extern crate serde;
