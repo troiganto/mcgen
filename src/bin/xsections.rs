@@ -67,22 +67,20 @@ where
 }
 
 
-fn get_args() -> (String, usize, usize) {
+fn get_args() -> (String, String, usize, usize) {
     let mut args = env::args();
     let _executable = args.next().expect("no executable");
-    let element = match args.next() {
-        Some(s) => s,
-        None => panic!("missing argument: element name"),
-    };
-    let n_bins = match args.next() {
-        Some(s) => s.parse::<usize>().expect("not a number"),
-        None => panic!("missing argument: number of bins"),
-    };
-    let n_samples = match args.next() {
-        Some(s) => s.parse::<usize>().expect("not a number"),
-        None => panic!("missing argument: number of bins"),
-    };
-    (element, n_bins, n_samples)
+    let scatter_type = args.next().expect("missing argument: scatter type");
+    let element = args.next().expect("missing argument: element name");
+    let n_bins = args.next()
+        .map(|s| s.parse::<usize>())
+        .expect("missing argument: number of bins")
+        .expect("number of bins");
+    let n_samples = args.next()
+        .map(|s| s.parse::<usize>())
+        .expect("missing argument: number of samples")
+        .expect("number of samples");
+    (scatter_type, element, n_bins, n_samples)
 }
 
 
@@ -106,23 +104,26 @@ fn handle_cross_section<XS>(
 }
 
 fn main() {
-    let (element, n_bins, n_samples) = get_args();
+    let (scatter_type, element, n_bins, n_samples) = get_args();
 
     let energy = match element.as_str() {
-        "cobalt" => 300.0 * KILO * EV,
+        "cerium" => 300.0 * KILO * EV,
         "caesium" => 661.7 * KILO * EV,
         _ => panic!("bad element name"),
     };
-    {
-        let coherent = CoherentCrossSection::new("data/AFF.dat").unwrap();
-        let mut filename = element.clone();
-        filename.push_str("_coherent.pdf");
-        handle_cross_section(coherent, &filename, energy, n_bins, n_samples);
-    }
-    {
-        let incoherent = IncoherentCrossSection::new("data/ISF.dat").unwrap();
-        let mut filename = element.clone();
-        filename.push_str("_incoherent.pdf");
-        handle_cross_section(incoherent, &filename, energy, n_bins, n_samples);
+    let mut filename = element.clone();
+    filename.push('_');
+    filename.push_str(&scatter_type);
+    filename.push_str(".pdf");
+    match scatter_type.as_str() {
+        "coherent" => {
+            let coherent = CoherentCrossSection::new("data/AFF.dat").unwrap();
+            handle_cross_section(coherent, &filename, energy, n_bins, n_samples);
+        },
+        "incoherent" => {
+            let incoherent = IncoherentCrossSection::new("data/ISF.dat").unwrap();
+            handle_cross_section(incoherent, &filename, energy, n_bins, n_samples);
+        },
+        _ => panic!("bad scatter type"),
     }
 }
