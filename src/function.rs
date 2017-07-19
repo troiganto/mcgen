@@ -1,112 +1,162 @@
+use std::cmp;
+use std::iter;
 use std::fs::File;
 use std::fmt::Debug;
 use std::path::Path;
+use std::ops::{Add, Sub, Mul, Div, Range};
 
 use csv;
-use num::Float;
 use serde::Deserialize;
 
 
-#[derive(Debug, Default, Clone)]
-pub struct Function<F: Debug + Default + Float> {
-    xdata: Vec<F>,
-    ydata: Vec<F>,
+pub trait Base: Debug + Copy + PartialOrd {
+    fn panicking_cmp(&self, other: &Self) -> cmp::Ordering {
+        self.partial_cmp(other).expect("not a number")
+    }
 }
 
-impl<F: Debug + Default + Float> Function<F> {
-    pub fn new() -> Self {
-        Function::default()
+impl<T: Debug + Copy + cmp::PartialOrd> Base for T {}
+
+pub trait Number: Base + Add<Output = Self> + Sub<Output = Self> {}
+
+impl<T: Base + Add<Output = Self> + Sub<Output = Self>> Number for T {}
+
+
+#[derive(Debug, Clone)]
+pub struct Function<X, Y = X>
+where
+    X: Number,
+    Y: Number,
+{
+    xdata: Vec<X>,
+    ydata: Vec<Y>,
+    ymin: Y,
+    ymax: Y,
+}
+
+impl<X: Number, Y: Number> Function<X, Y> {
+    pub fn new(x: X, y: Y) -> Self {
+        Self::with_capacity(1, x, y)
     }
 
-    pub fn xdata(&self) -> &[F] {
+    pub fn with_capacity(capacity: usize, x: X, y: Y) -> Self {
+        let mut xdata = Vec::with_capacity(capacity);
+        let mut ydata = Vec::with_capacity(capacity);
+        xdata.push(x);
+        ydata.push(y);
+        Function {
+            xdata,
+            ydata,
+            ymin: y,
+            ymax: y,
+        }
+    }
+
+    pub fn xdata(&self) -> &[X] {
         &self.xdata
     }
 
-    pub fn ydata(&self) -> &[F] {
+    pub fn ydata(&self) -> &[Y] {
         &self.ydata
     }
 
-    pub fn min(&self) -> Option<&F> {
-        self.ydata
-            .iter()
-            .min_by(|y1, y2| y1.partial_cmp(y2).expect("NaNs are not allowed"))
+    pub fn domain(&self) -> Range<X> {
+        let start = *self.xdata.first().expect("functions may not be empty");
+        let end = *self.xdata.last().expect("functions may not be empty");
+        Range { start, end }
     }
 
-    pub fn max(&self) -> Option<&F> {
-        self.ydata
-            .iter()
-            .max_by(|y1, y2| y1.partial_cmp(y2).expect("NaNs are not allowed"))
-    }
-
-    pub fn call(&self, x: F) -> F {
-        let some_iend = self.find_first_x_greater_than(x);
-        let iend = match some_iend {
-            None => panic!("out of range"),
-            Some(0) => panic!("out of range"),
-            Some(iend) => iend,
-        };
-        // Apply linear interpolation.
-        let (x0, x1) = (self.xdata[iend - 1], self.xdata[iend]);
-        let (y0, y1) = (self.ydata[iend - 1], self.ydata[iend]);
-        let slope = (y1 - y0) / (x1 - x0);
-        (x - x0) * slope + y0
-    }
-
-    pub fn push(&mut self, (x, y): (F, F)) {
-        if !(x.is_finite() && y.is_finite()) {
-            panic!("attempted to add non-finite number");
+    pub fn codomain(&self) -> Range<Y> {
+        Range {
+            start: *self.min(),
+            end: *self.max(),
         }
-        if let Some(last_x) = self.xdata.last() {
-            if last_x > &x {
-                panic!("attempted to build unsorted function");
-            }
+    }
+
+    pub fn min(&self) -> &Y {
+        &self.ymin
+    }
+
+    pub fn max(&self) -> &Y {
+        &self.ymax
+    }
+
+    pub fn push(&mut self, x: X, y: Y) {
+        use std::cmp::Ordering::*;
+
+        let last_x = self.domain().end;
+        match x.panicking_cmp(&last_x) {
+            Less => panic!("point out of order: {:?}", x),
+            _ => {},
+        }
+        if y.panicking_cmp(&self.ymin) == Less {
+            self.ymin = y;
+        } else if y.panicking_cmp(&self.ymax) == Greater {
+            self.ymax = y;
         }
         self.xdata.push(x);
         self.ydata.push(y);
     }
+}
 
-    pub fn insert(&mut self, x: F, y: F) {
-        if !(x.is_finite() && y.is_finite()) {
-            panic!("attempted add non-finite number");
+impl<X, Y> Function<X, Y>
+where
+    X: Number,
+    Y: Number + Div<X>,
+    <Y as Div<X>>::Output: Mul<X, Output = Y>,
+{
+    pub fn call(&self, x: X) -> Y {
+        let iend = match self.xdata.binary_search_by(|x1| x1.panicking_cmp(&x)) {
+            Ok(i) => return self.ydata[i],
+            Err(i) => i,
+        };
+        if iend == 0 || iend == self.xdata.len() {
+            println!("{:?}", self);
+            panic!("out of bounds: {:?}", x)
         }
-        let insert_point = self.find_first_x_greater_than(x);
-        if let Some(insert_point) = insert_point {
-            // Check for uniqueness.
-            if insert_point > 0 && self.xdata[insert_point - 1] == x {
-                panic!("attempted to add same point twice");
-            }
-            self.xdata.insert(insert_point, x);
-            self.ydata.insert(insert_point, y);
-        } else {
-            self.xdata.push(x);
-            self.ydata.push(y);
-        }
+        let left = (self.xdata[iend - 1], self.ydata[iend - 1]);
+        let right = (self.xdata[iend], self.ydata[iend]);
+        Self::interpolate(left, right, x)
     }
 
-    fn find_first_x_greater_than(&self, x: F) -> Option<usize> {
-        for (i, x_item) in self.xdata.iter().enumerate() {
-            if *x_item > x {
-                return Some(i);
-            }
-        }
-        None
+    fn interpolate((x0, y0): (X, Y), (x1, y1): (X, Y), x: X) -> Y {
+        let slope = (y1 - y0) / (x1 - x0);
+        y0 + slope * (x - x0)
     }
 }
 
-impl<F> Function<F>
+impl<X: Number, Y: Number> iter::Extend<(X, Y)> for Function<X, Y> {
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = (X, Y)>,
+    {
+        for (x, y) in iter {
+            self.push(x, y);
+        }
+    }
+}
+
+impl<X, Y> Function<X, Y>
 where
-    F: Debug + Default + Float + for<'de> Deserialize<'de>,
+    X: Number + for<'de> Deserialize<'de>,
+    Y: Number + for<'de> Deserialize<'de>,
 {
     pub fn from_file<P>(path: P) -> csv::Result<Self>
     where
         P: AsRef<Path>,
     {
-        let mut func = Function::new();
         let mut reader = Self::new_reader(path)?;
-        for record in reader.records() {
-            let record = record?;
-            let point = record.deserialize(None)?;
-            func.push(point);
+        let mut records = reader.records();
+
+        let mut func = if let Some(record) = records.next() {
+            let (x, y) = record?.deserialize(None)?;
+            Function::new(x, y)
+        } else {
+            panic!("empty file");
+        };
+        for record in records {
+            let (x, y) = record?.deserialize(None)?;
+            func.push(x, y);
         }
         Ok(func)
     }
@@ -115,26 +165,28 @@ where
     where
         P: AsRef<Path>,
     {
-        let mut funcs = Vec::new();
         let mut reader = Self::new_reader(path)?;
+        let mut records = reader.records();
 
-        for record in reader.records() {
-            let record = record?;
-            if funcs.is_empty() {
-                for _ in 1..record.len() {
-                    funcs.push(Function::new());
-                }
-            }
-            let record: Vec<F> = record.deserialize(None)?;
-            let (&x, rest) = record.split_first().expect("empty record");
-            for (&y, func) in rest.iter().zip(&mut funcs) {
-                func.push((x, y));
+        let mut funcs = if let Some(record) = records.next() {
+            let (x, ys): (X, Vec<Y>) = record?.deserialize(None)?;
+            ys.into_iter()
+                .map(|y| Function::new(x, y))
+                .collect::<Vec<_>>()
+        } else {
+            panic!("empty file");
+        };
+
+        for record in records {
+            let (x, ys): (X, Vec<Y>) = record?.deserialize(None)?;
+            for (y, func) in ys.into_iter().zip(&mut funcs) {
+                func.push(x, y);
             }
         }
         Ok(funcs)
     }
 
-    pub fn new_reader<P>(path: P) -> csv::Result<csv::Reader<File>>
+    fn new_reader<P>(path: P) -> csv::Result<csv::Reader<File>>
     where
         P: AsRef<Path>,
     {
