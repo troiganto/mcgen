@@ -97,6 +97,47 @@ impl<X: Number, Y: Number> Function<X, Y> {
         self.xdata.push(x);
         self.ydata.push(y);
     }
+
+    pub fn scale_x<S>(self, scale: S) -> Function<S::Output, Y>
+    where
+        S: Copy + Mul<X>,
+        S::Output: Number,
+    {
+        Function {
+            xdata: self.xdata.into_iter().map(|x| scale * x).collect(),
+            ydata: self.ydata,
+            ymin: self.ymin,
+            ymax: self.ymax,
+        }
+    }
+
+    pub fn scale_y<S>(self, scale: S) -> Function<X, S::Output>
+    where
+        S: Copy + Mul<Y>,
+        S::Output: Number,
+    {
+        Function {
+            xdata: self.xdata,
+            ydata: self.ydata.into_iter().map(|y| scale * y).collect(),
+            ymin: scale * self.ymin,
+            ymax: scale * self.ymax,
+        }
+    }
+
+    pub fn scale<S, T>(self, xscale: S, yscale: T) -> Function<S::Output, T::Output>
+    where
+        S: Copy + Mul<X>,
+        S::Output: Number,
+        T: Copy + Mul<Y>,
+        T::Output: Number,
+    {
+        Function {
+            xdata: self.xdata.into_iter().map(|x| xscale * x).collect(),
+            ydata: self.ydata.into_iter().map(|y| yscale * y).collect(),
+            ymin: yscale * self.ymin,
+            ymax: yscale * self.ymax,
+        }
+    }
 }
 
 impl<X, Y> Function<X, Y>
