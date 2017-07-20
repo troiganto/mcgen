@@ -34,7 +34,7 @@ pub trait CrossSection {
 /// factor.
 #[derive(Debug)]
 pub struct CoherentCrossSection {
-    form_factor: Function<f64>,
+    form_factor: Function<Joule<f64>, Unitless<f64>>,
 }
 
 impl CoherentCrossSection {
@@ -42,15 +42,14 @@ impl CoherentCrossSection {
     where
         P: AsRef<Path>,
     {
-        let form_factor = Function::from_file(form_factor_file)?;
+        let form_factor = Function::<f64>::from_file(form_factor_file)?
+            .scale(KILO * EV, Unitless::new(1.0));
         let result = CoherentCrossSection { form_factor };
         Ok(result)
     }
 
     pub fn form_factor(&self, energy: Joule<f64>, mu: Unitless<f64>) -> Unitless<f64> {
-        let x = get_x(energy, mu) / (KILO * EV);
-        let form_factor = self.form_factor.call(*x.value());
-        Unitless::new(form_factor)
+        self.form_factor.call(get_x(energy, mu))
     }
 }
 
@@ -70,7 +69,7 @@ impl CrossSection for CoherentCrossSection {
 /// incoherent scattering function.
 #[derive(Debug)]
 pub struct IncoherentCrossSection {
-    scattering_function: Function<f64>,
+    scattering_function: Function<Joule<f64>, Unitless<f64>>,
 }
 
 impl IncoherentCrossSection {
@@ -78,7 +77,8 @@ impl IncoherentCrossSection {
     where
         P: AsRef<Path>,
     {
-        let scattering_function = Function::from_file(scattering_function_file)?;
+        let scattering_function = Function::<f64>::from_file(scattering_function_file)?
+            .scale(KILO * EV, Unitless::new(1.0));
         let result = IncoherentCrossSection { scattering_function };
         Ok(result)
     }
@@ -90,9 +90,7 @@ impl IncoherentCrossSection {
     }
 
     pub fn scattering_function(&self, energy: Joule<f64>, mu: Unitless<f64>) -> Unitless<f64> {
-        let x = get_x(energy, mu) / (KILO * EV);
-        let scattering_function = self.scattering_function.call(*x.value());
-        Unitless::new(scattering_function)
+        self.scattering_function.call(get_x(energy, mu))
     }
 
     pub fn klein_nishina(&self, energy: Joule<f64>, mu: Unitless<f64>) -> Meter2<f64> {
