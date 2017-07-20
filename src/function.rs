@@ -9,17 +9,17 @@ use csv;
 use serde::Deserialize;
 
 
-pub trait Base: Debug + Copy + PartialOrd {
+pub trait Primitive: Debug + Copy + PartialOrd {
     fn panicking_cmp(&self, other: &Self) -> cmp::Ordering {
         self.partial_cmp(other).expect("not a number")
     }
 }
 
-impl<T: Debug + Copy + cmp::PartialOrd> Base for T {}
+impl<T: Debug + Copy + cmp::PartialOrd> Primitive for T {}
 
-pub trait Number: Base + Add<Output = Self> + Sub<Output = Self> {}
+pub trait Number: Primitive + Add<Output = Self> + Sub<Output = Self> {}
 
-impl<T: Base + Add<Output = Self> + Sub<Output = Self>> Number for T {}
+impl<T: Primitive + Add<Output = Self> + Sub<Output = Self>> Number for T {}
 
 
 #[derive(Debug, Clone)]
@@ -85,13 +85,13 @@ impl<X: Number, Y: Number> Function<X, Y> {
         use std::cmp::Ordering::*;
 
         let last_x = self.domain().end;
-        match x.panicking_cmp(&last_x) {
+        match X::panicking_cmp(&x, &last_x) {
             Less => panic!("point out of order: {:?}", x),
             _ => {},
         }
-        if y.panicking_cmp(&self.ymin) == Less {
+        if Y::panicking_cmp(&y, &self.ymin) == Less {
             self.ymin = y;
-        } else if y.panicking_cmp(&self.ymax) == Greater {
+        } else if Y::panicking_cmp(&y, &self.ymax) == Greater {
             self.ymax = y;
         }
         self.xdata.push(x);
@@ -111,7 +111,6 @@ where
             Err(i) => i,
         };
         if iend == 0 || iend == self.xdata.len() {
-            println!("{:?}", self);
             panic!("out of bounds: {:?}", x)
         }
         let left = (self.xdata[iend - 1], self.ydata[iend - 1]);
