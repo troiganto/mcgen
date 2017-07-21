@@ -2,7 +2,7 @@ use std::path::Path;
 
 use csv;
 
-use rand::{Rng, thread_rng};
+use rand::Rng;
 use rand::distributions::{self, Sample, IndependentSample};
 
 use dimensioned::si::*;
@@ -195,19 +195,6 @@ where
         self.gen_mu(rng)
     }
 }
-
-impl<'a, XS> Iterator for RejectionSampler<'a, XS>
-where
-    XS: 'a + CrossSection,
-{
-    type Item = Unitless<f64>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut rng = thread_rng();
-        Some(self.gen_mu(&mut rng))
-    }
-}
-
 
 /// Returns the classical electron radius.
 fn r_e() -> Meter<f64> {

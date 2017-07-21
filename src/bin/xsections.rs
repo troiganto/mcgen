@@ -1,18 +1,20 @@
-
-extern crate dimensioned;
-extern crate gnuplot;
+extern crate rand;
 extern crate mcgen;
+extern crate gnuplot;
+extern crate dimensioned;
 
 use std::env;
 
+use rand::thread_rng;
 use dimensioned::si::*;
 use dimensioned::Dimensionless;
 use dimensioned::f64prefixes::*;
 
+use mcgen::IntoSampleIter;
 use mcgen::crosssection::*;
 
 
-fn make_mu_histogram<I>(mut sample: I, n_bins: usize, n_samples: usize) -> (Vec<f64>, Vec<f64>)
+fn make_mu_histogram<I>(sample: I, n_bins: usize) -> (Vec<f64>, Vec<f64>)
 where
     I: Iterator<Item = Unitless<f64>>,
 {
@@ -29,15 +31,10 @@ where
 
     let bins = {
         let mut bins = vec![0.0; n_bins];
-        for _ in 0..n_samples {
-            let mu = sample.next().expect("not enough data");
+        for mu in sample {
             let mu = *mu.value();
             let i = ((mu - (-1.0)) / dmu) as usize;
             bins[i] += 1.0;
-        }
-
-        for bin in bins.iter_mut() {
-            *bin /= n_samples as f64;
         }
         bins
     };
@@ -93,10 +90,13 @@ fn handle_cross_section<XS>(
 ) where
     XS: CrossSection,
 {
-    let sampler = RejectionSampler::new(&xsection, energy);
+    let mut rng = thread_rng();
+    let sample = RejectionSampler::new(&xsection, energy)
+        .into_sample_iter(&mut rng)
+        .take(n_samples);
     let secs = mcgen::time::measure_seconds(
         || {
-            let (x, y) = make_mu_histogram(sampler, n_bins, n_samples);
+            let (x, y) = make_mu_histogram(sample, n_bins);
             plot_histogram(filename, x, y);
         },
     );
