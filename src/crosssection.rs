@@ -38,6 +38,8 @@ pub struct CoherentCrossSection {
 }
 
 impl CoherentCrossSection {
+    /// Creates a cross-section with the atomic form factor from the
+    /// given file.
     pub fn new<P>(form_factor_file: P) -> csv::Result<Self>
     where
         P: AsRef<Path>,
@@ -48,6 +50,9 @@ impl CoherentCrossSection {
         Ok(result)
     }
 
+    /// Evaluates the atomic form factor at the given energy and `mu`.
+    ///
+    /// `mu` is `cos(theta)`, where `theta` is the polar angle.
     pub fn form_factor(&self, energy: Joule<f64>, mu: Unitless<f64>) -> Unitless<f64> {
         self.form_factor.call(get_x(energy, mu))
     }
@@ -73,6 +78,8 @@ pub struct IncoherentCrossSection {
 }
 
 impl IncoherentCrossSection {
+    /// Creates a cross-section with the atomic form factor from the
+    /// given file.
     pub fn new<P>(scattering_function_file: P) -> csv::Result<Self>
     where
         P: AsRef<Path>,
@@ -83,16 +90,30 @@ impl IncoherentCrossSection {
         Ok(result)
     }
 
+    /// Calculates the resulting energy of the Compton formula.
+    ///
+    /// `mu` is `cos(theta)`, where `theta` is the polar angle. `energy`
+    /// is the incident particle's energy, the result is the energy
+    /// after
+    /// the scattering process.
     pub fn compton_scatter(energy: Joule<f64>, mu: Unitless<f64>) -> Joule<f64> {
         let kappa = energy / (M_E * C0 * C0);
         let kappa_antimu = kappa * (1.0 - mu);
         energy / (1.0 + kappa_antimu)
     }
 
+    /// Evaluates the incoherent scattering function at the given
+    /// energy and `mu`.
+    ///
+    /// `mu` is `cos(theta)`, where `theta` is the polar angle.
     pub fn scattering_function(&self, energy: Joule<f64>, mu: Unitless<f64>) -> Unitless<f64> {
         self.scattering_function.call(get_x(energy, mu))
     }
 
+    /// Calculates the Klein–Nishina cross-section at the given energy
+    /// and `mu`.
+    ///
+    /// `mu` is `cos(theta)`, where `theta` is the polar angle.
     pub fn klein_nishina(&self, energy: Joule<f64>, mu: Unitless<f64>) -> Meter2<f64> {
         let kappa = energy / (M_E * C0 * C0);
         let kappa_antimu = kappa * (1.0 - mu);
@@ -129,6 +150,8 @@ impl<'a, XS> RejectionSampler<'a, XS>
 where
     XS: 'a + CrossSection,
 {
+    /// Creates a new sampler, sampling the cross-section at the given,
+    /// fixed energy.
     pub fn new(dist: &'a XS, energy: Joule<f64>) -> Self {
         let max_xsection = dist.max(energy) / M2;
         let xsection_dist = distributions::Range::new(-0.0, *max_xsection.value());
@@ -142,6 +165,7 @@ where
         }
     }
 
+    /// Produces a new `mu` value.
     pub fn gen_mu<R: Rng>(&self, rng: &mut R) -> Unitless<f64> {
         loop {
             let random_mu = Unitless::new(self.mu_dist.ind_sample(rng));
