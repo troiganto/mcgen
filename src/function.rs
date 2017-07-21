@@ -55,7 +55,12 @@ where
 impl<X: Number, Y: Number> Function<X, Y> {
     /// Creates a function that initially contains only one point.
     pub fn new(x: X, y: Y) -> Self {
-        Self::with_capacity(1, x, y)
+        Function {
+            xdata: vec![x],
+            ydata: vec![y],
+            ymin: y,
+            ymax: y,
+        }
     }
 
     /// Creates a function that initially contains only one point.
@@ -152,8 +157,15 @@ impl<X: Number, Y: Number> Function<X, Y> {
         S: Copy + Mul<X>,
         S::Output: Number,
     {
+        let xdata = self.xdata
+            .into_iter()
+            .map(|x| scale * x)
+            .collect::<Vec<_>>();
+        if !is_sorted(&xdata) {
+            panic!("xdata is out of order");
+        }
         Function {
-            xdata: self.xdata.into_iter().map(|x| scale * x).collect(),
+            xdata,
             ydata: self.ydata,
             ymin: self.ymin,
             ymax: self.ymax,
@@ -169,11 +181,23 @@ impl<X: Number, Y: Number> Function<X, Y> {
         S: Copy + Mul<Y>,
         S::Output: Number,
     {
+        let ydata = self.ydata
+            .into_iter()
+            .map(|y| scale * y)
+            .collect::<Vec<_>>();
+        let ymin = *ydata
+                        .iter()
+                        .min_by(|left, right| left.panicking_cmp(right))
+                        .expect("missing minimum");
+        let ymax = *ydata
+                        .iter()
+                        .max_by(|left, right| left.panicking_cmp(right))
+                        .expect("missing maximum");
         Function {
             xdata: self.xdata,
-            ydata: self.ydata.into_iter().map(|y| scale * y).collect(),
-            ymin: scale * self.ymin,
-            ymax: scale * self.ymax,
+            ydata,
+            ymin,
+            ymax,
         }
     }
 
@@ -185,12 +209,7 @@ impl<X: Number, Y: Number> Function<X, Y> {
         T: Copy + Mul<Y>,
         T::Output: Number,
     {
-        Function {
-            xdata: self.xdata.into_iter().map(|x| xscale * x).collect(),
-            ydata: self.ydata.into_iter().map(|y| yscale * y).collect(),
-            ymin: yscale * self.ymin,
-            ymax: yscale * self.ymax,
-        }
+        self.scale_x(xscale).scale_y(yscale)
     }
 }
 
@@ -330,4 +349,16 @@ where
             .comment(Some(b'#'))
             .from_path(path)
     }
+}
+
+
+/// Returns `true` if all numbers are sorted in an increasing manner.
+///
+/// # Panics
+/// This panics if any number is not comparable to its neighbors.
+fn is_sorted<X: Number>(nums: &[X]) -> bool {
+    use std::cmp::Ordering::Greater;
+
+    nums.windows(2)
+        .all(|pair| X::panicking_cmp(&pair[0], &pair[1]) != Greater)
 }
