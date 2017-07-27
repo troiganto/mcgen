@@ -1,5 +1,3 @@
-use rand::Rng;
-
 use dimensioned::si::Joule;
 
 use super::{Point, Direction};
@@ -12,8 +10,7 @@ pub struct Photon {
 }
 
 impl Photon {
-    pub fn emit_at<R: Rng>(location: Point, energy: Joule<f64>, rng: &mut R) -> Self {
-        let direction = rng.gen();
+    pub fn new(location: Point, direction: Direction, energy: Joule<f64>) -> Self {
         Photon {
             location,
             direction,

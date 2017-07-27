@@ -34,7 +34,7 @@ impl Source {
     }
 
     pub fn emit_photon<R: Rng>(&self, rng: &mut R) -> Photon {
-        Photon::emit_at(self.location.clone(), self.energy, rng)
+        Photon::new(self.location.clone(), rng.gen(), self.energy)
     }
 }
 
