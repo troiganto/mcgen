@@ -2,8 +2,25 @@ use rand::{Rng, thread_rng};
 
 use dimensioned::si::Joule;
 
-use super::{Point, Material, Event};
+use super::Point;
 use super::particle::Photon;
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Material {
+    Air,
+    Absorber,
+    Detector,
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Event {
+    Nothing,
+    CoherentScatter,
+    IncoherentScatter,
+    Absorbed,
+}
 
 
 pub struct Source {
