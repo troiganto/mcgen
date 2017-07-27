@@ -1,6 +1,6 @@
 use rand::{Rng, thread_rng};
 
-use dimensioned::si::Joule;
+use dimensioned::si::*;
 
 use super::Point;
 use super::particle::Photon;
@@ -50,11 +50,16 @@ enum ParticleStatus {
 pub trait Experiment {
     fn source(&self) -> &Source;
 
-    fn x_start(&self) -> f64;
+    fn x_start(&self) -> Meter<f64>;
 
     fn get_material(&self, location: &Point) -> Material;
 
-    fn gen_free_path<R: Rng>(&self, material: Material, energy: Joule<f64>, rng: &mut R) -> f64;
+    fn gen_free_path<R: Rng>(
+        &self,
+        material: Material,
+        energy: Joule<f64>,
+        rng: &mut R,
+    ) -> Meter<f64>;
 
     fn gen_event<R: Rng>(&self, material: Material, energy: Joule<f64>, rng: &mut R) -> Event;
 
@@ -63,14 +68,14 @@ pub trait Experiment {
         material: Material,
         energy: Joule<f64>,
         rng: &mut R,
-    ) -> f64;
+    ) -> Unitless<f64>;
 
     fn gen_incoherent_scatter<R: Rng>(
         &self,
         material: Material,
         energy: Joule<f64>,
         rng: &mut R,
-    ) -> (f64, Joule<f64>);
+    ) -> (Unitless<f64>, Joule<f64>);
 }
 
 

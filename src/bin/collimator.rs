@@ -31,7 +31,7 @@ impl ThisTask {
             .expect("MFWL.dat")
             .into_iter();
         ThisTask {
-            source: Source::new((0.0, 0.0).into(), 661.7 * KILO * EV),
+            source: Source::new((0.0 * M, 0.0 * M).into(), 661.7 * KILO * EV),
             coherent_xsection: CoherentCrossSection::new("data/AFF.dat").expect("AFF.dat"),
             incoherent_xsection: IncoherentCrossSection::new("data/ISF.dat").expect("ISF.dat"),
             mfp_tot: mean_free_paths.next().expect("mfp_tot"),
@@ -41,10 +41,11 @@ impl ThisTask {
         }
     }
 
-    fn sample_pb_free_path<R: Rng>(&self, energy: Joule<f64>, rng: &mut R) -> f64 {
+    fn sample_pb_free_path<R: Rng>(&self, energy: Joule<f64>, rng: &mut R) -> Meter<f64> {
         let energy = energy / (KILO * EV);
-        let dist = distributions::Exp::new(self.mfp_tot.call(*energy.value()));
-        dist.ind_sample(rng)
+        let mean_free_path = self.mfp_tot.call(*energy.value());
+        let dist = distributions::Exp::new(mean_free_path);
+        dist.ind_sample(rng) * CENTI * M
     }
 
 
@@ -73,25 +74,31 @@ impl Experiment for ThisTask {
         &self.source
     }
 
-    fn x_start(&self) -> f64 {
-        0.5
+    fn x_start(&self) -> Meter<f64> {
+        0.5 * CENTI * M
     }
 
     fn get_material(&self, location: &Point) -> Material {
         let (x, y) = (location.x(), location.y());
-        if 0.5 < x && x < 1.5 && y.abs() > 0.1 {
+        if 0.5 * CENTI * M < x && x < 1.5 * CENTI * M &&
+           (y > 0.1 * CENTI * M || y < -0.1 * CENTI * M) {
             Material::Absorber
-        } else if x > 11.5 {
+        } else if x > 11.5 * CENTI * M {
             Material::Detector
         } else {
             Material::Air
         }
     }
 
-    fn gen_free_path<R: Rng>(&self, material: Material, energy: Joule<f64>, rng: &mut R) -> f64 {
+    fn gen_free_path<R: Rng>(
+        &self,
+        material: Material,
+        energy: Joule<f64>,
+        rng: &mut R,
+    ) -> Meter<f64> {
         match material {
-            Material::Detector => 0.0,
-            Material::Air => 0.1,
+            Material::Detector => 0.0 * M,
+            Material::Air => 0.1 * M,
             Material::Absorber => self.sample_pb_free_path(energy, rng),
         }
     }
@@ -104,14 +111,19 @@ impl Experiment for ThisTask {
         }
     }
 
-    fn gen_coherent_scatter<R: Rng>(&self, _: Material, energy: Joule<f64>, rng: &mut R) -> f64 {
+    fn gen_coherent_scatter<R: Rng>(
+        &self,
+        _: Material,
+        energy: Joule<f64>,
+        rng: &mut R,
+    ) -> Unitless<f64> {
         let sampler = RejectionSampler::new(&self.coherent_xsection, energy);
         let mu = sampler.ind_sample(rng);
         let mut angle = mu.value().acos();
         if rng.gen::<bool>() {
             angle *= -1.0;
         }
-        angle
+        Unitless::new(angle)
     }
 
     fn gen_incoherent_scatter<R: Rng>(
@@ -119,7 +131,7 @@ impl Experiment for ThisTask {
         _: Material,
         energy: Joule<f64>,
         rng: &mut R,
-    ) -> (f64, Joule<f64>) {
+    ) -> (Unitless<f64>, Joule<f64>) {
         let sampler = RejectionSampler::new(&self.incoherent_xsection, energy);
         let mu = sampler.ind_sample(rng);
         let mut angle = mu.value().acos();
@@ -127,7 +139,7 @@ impl Experiment for ThisTask {
             angle *= -1.0;
         }
         let new_energy = IncoherentCrossSection::compton_scatter(energy, mu);
-        (angle, new_energy)
+        (Unitless::new(angle), new_energy)
     }
 }
 
@@ -204,9 +216,9 @@ fn main() {
     for _ in 0..n_particles {
         let photon = simulate_particle(&experiment);
         let energy = photon.energy() / (KILO * EV);
-        let radius = photon.location().y().abs();
+        let radius = photon.location().y() / M;
         energy_hist.fill(*energy.value());
-        radius_hist.fill(radius);
+        radius_hist.fill(radius.value().abs());
     }
     energy_hist.show("energy_hist.pdf");
     radius_hist.show("radius_hist.pdf");

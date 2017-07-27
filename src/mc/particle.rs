@@ -1,6 +1,9 @@
 use dimensioned::si::Joule;
 
-use super::{Point, Direction};
+use dimensioned::si::*;
+
+use mc::geometry::{Point, Direction};
+
 
 #[derive(Debug)]
 pub struct Photon {
@@ -35,21 +38,21 @@ impl Photon {
         self.energy = energy
     }
 
-    pub fn go_to_x(&mut self, x: f64) -> Result<(), Error> {
+    pub fn go_to_x(&mut self, x: Meter<f64>) -> Result<(), Error> {
         let dx = x - self.location.x();
         let scale = dx / self.direction.dx();
         self.step(scale)
     }
 
-    pub fn go_to_y(&mut self, y: f64) -> Result<(), Error> {
+    pub fn go_to_y(&mut self, y: Meter<f64>) -> Result<(), Error> {
         let dy = y - self.location.y();
         let scale = dy / self.direction.dy();
         self.step(scale)
     }
 
-    pub fn step(&mut self, scale: f64) -> Result<(), Error> {
-        if scale > 0.0 {
-            self.location.step(&self.direction, scale);
+    pub fn step(&mut self, length: Meter<f64>) -> Result<(), Error> {
+        if length > 0.0 * M {
+            self.location.step(&self.direction, length);
             Ok(())
         } else {
             Err(Error::WrongDirection)
