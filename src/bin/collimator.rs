@@ -7,7 +7,7 @@ use rand::Rng;
 use rand::distributions::{self, IndependentSample};
 
 use dimensioned::si::*;
-use dimensioned::Dimensionless;
+use dimensioned::{Dimensionless, Recip};
 use dimensioned::f64prefixes::*;
 
 use mcgen::crosssection::*;
@@ -19,49 +19,45 @@ struct ThisTask {
     source: Source,
     coherent_xsection: CoherentCrossSection,
     incoherent_xsection: IncoherentCrossSection,
-    mfp_tot: Function<f64>,
-    mfp_coh: Function<f64>,
-    mfp_inc: Function<f64>,
-    mfp_pho: Function<f64>,
+    mfp_tot: Function<Joule<f64>, Meter<f64>>,
+    mfp_coh: Function<Joule<f64>, Meter<f64>>,
+    mfp_inc: Function<Joule<f64>, Meter<f64>>,
+    mfp_pho: Function<Joule<f64>, Meter<f64>>,
 }
 
 impl ThisTask {
     fn new() -> Self {
-        let mut mean_free_paths = Function::multiple_from_file("data/MFWL.dat")
+        let mut mean_free_paths = Function::<f64>::multiple_from_file("data/MFWL.dat")
             .expect("MFWL.dat")
             .into_iter();
         ThisTask {
             source: Source::new((0.0 * M, 0.0 * M).into(), 661.7 * KILO * EV),
             coherent_xsection: CoherentCrossSection::new("data/AFF.dat").expect("AFF.dat"),
             incoherent_xsection: IncoherentCrossSection::new("data/ISF.dat").expect("ISF.dat"),
-            mfp_tot: mean_free_paths.next().expect("mfp_tot"),
-            mfp_coh: mean_free_paths.next().expect("mfp_coh"),
-            mfp_inc: mean_free_paths.next().expect("mfp_inc"),
-            mfp_pho: mean_free_paths.next().expect("mfp_pho"),
+            mfp_tot: mean_free_paths.next().expect("mfp_tot").scale(KILO * EV, CENTI * M),
+            mfp_coh: mean_free_paths.next().expect("mfp_coh").scale(KILO * EV, CENTI * M),
+            mfp_inc: mean_free_paths.next().expect("mfp_inc").scale(KILO * EV, CENTI * M),
+            mfp_pho: mean_free_paths.next().expect("mfp_pho").scale(KILO * EV, CENTI * M),
         }
     }
 
     fn sample_pb_free_path<R: Rng>(&self, energy: Joule<f64>, rng: &mut R) -> Meter<f64> {
-        let energy = energy / (KILO * EV);
-        let mean_free_path = self.mfp_tot.call(*energy.value());
-        let dist = distributions::Exp::new(mean_free_path);
-        dist.ind_sample(rng) * CENTI * M
+        let mean_free_path = self.mfp_tot.call(energy) / M;
+        let dist = distributions::Exp::new(*mean_free_path.value());
+        dist.ind_sample(rng) * M
     }
 
 
     fn choose_pb_process<R: Rng>(&self, energy: Joule<f64>, rng: &mut R) -> Event {
-        let energy = energy / (KILO * EV);
-        let energy = *energy.value();
-
         let thres_coh = 0.0;
-        let thres_inc = self.mfp_coh.call(energy).recip();
-        let thres_pho = self.mfp_inc.call(energy).recip() + thres_inc;
-        let upper_lim = self.mfp_pho.call(energy).recip() + thres_pho;
+        let thres_inc = self.mfp_coh.call(energy).recip() * M;
+        let thres_pho = self.mfp_inc.call(energy).recip() * M + thres_inc;
+        let upper_lim = self.mfp_pho.call(energy).recip() * M + thres_pho;
 
-        let value = rng.gen_range(thres_coh, upper_lim);
-        if value > thres_pho {
+        let value = rng.gen_range(thres_coh, *upper_lim.value());
+        if value > *thres_pho.value() {
             Event::Absorbed
-        } else if value > thres_inc {
+        } else if value > *thres_inc.value() {
             Event::IncoherentScatter
         } else {
             Event::CoherentScatter
@@ -98,7 +94,7 @@ impl Experiment for ThisTask {
     ) -> Meter<f64> {
         match material {
             Material::Detector => 0.0 * M,
-            Material::Air => 0.1 * M,
+            Material::Air => 0.1 * CENTI * M,
             Material::Absorber => self.sample_pb_free_path(energy, rng),
         }
     }
