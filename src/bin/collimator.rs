@@ -34,10 +34,22 @@ impl ThisTask {
             source: Source::new((0.0 * M, 0.0 * M).into(), 661.7 * KILO * EV),
             coherent_xsection: CoherentCrossSection::new("data/AFF.dat").expect("AFF.dat"),
             incoherent_xsection: IncoherentCrossSection::new("data/ISF.dat").expect("ISF.dat"),
-            mfp_tot: mean_free_paths.next().expect("mfp_tot").scale(KILO * EV, CENTI * M),
-            mfp_coh: mean_free_paths.next().expect("mfp_coh").scale(KILO * EV, CENTI * M),
-            mfp_inc: mean_free_paths.next().expect("mfp_inc").scale(KILO * EV, CENTI * M),
-            mfp_pho: mean_free_paths.next().expect("mfp_pho").scale(KILO * EV, CENTI * M),
+            mfp_tot: mean_free_paths
+                .next()
+                .expect("mfp_tot")
+                .scale(KILO * EV, CENTI * M),
+            mfp_coh: mean_free_paths
+                .next()
+                .expect("mfp_coh")
+                .scale(KILO * EV, CENTI * M),
+            mfp_inc: mean_free_paths
+                .next()
+                .expect("mfp_inc")
+                .scale(KILO * EV, CENTI * M),
+            mfp_pho: mean_free_paths
+                .next()
+                .expect("mfp_pho")
+                .scale(KILO * EV, CENTI * M),
         }
     }
 
@@ -146,12 +158,10 @@ impl Histogram {
         for i in 0..(nbins - 1) {
             low_edges.push(low + width * (i as f64));
         }
-        let weights = vec![0; nbins];
-        let range = (low, high);
         Histogram {
-            low_edges,
-            weights,
-            range,
+            low_edges: low_edges,
+            weights: vec![0; nbins],
+            range: (low, high),
         }
     }
 
@@ -196,8 +206,7 @@ fn main() {
     let mut radius_hist = Histogram::new(127, 0.0, 1.27);
 
     let mut args = ::std::env::args();
-    args.next();
-    let n_particles = match args.next() {
+    let n_particles = match args.skip(1).next() {
         Some(s) => s.parse::<usize>().expect("not a number: n_particles"),
         None => panic!("missing argument: n_particles"),
     };

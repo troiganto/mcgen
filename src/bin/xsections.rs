@@ -65,8 +65,7 @@ where
 
 
 fn get_args() -> (String, String, usize, usize) {
-    let mut args = env::args();
-    let _executable = args.next().expect("no executable");
+    let mut args = env::args().skip(1);
     let scatter_type = args.next().expect("missing argument: scatter type");
     let element = args.next().expect("missing argument: element name");
     let n_bins = args.next()

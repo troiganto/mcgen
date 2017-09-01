@@ -104,7 +104,10 @@ impl Direction {
     /// The angle is interpreted as going counter-clockwise from the
     /// positive X-axis to the vector of the desired direction.
     pub fn from_angle(angle: Unitless<f64>) -> Self {
-        Direction { dx: Unitless::new(angle.cos()), dy: Unitless::new(angle.sin()) }
+        Direction {
+            dx: Unitless::new(angle.cos()),
+            dy: Unitless::new(angle.sin()),
+        }
     }
 
     /// Returns the X-component of the vector describing the direction.
@@ -132,7 +135,7 @@ impl Rand for Direction {
     /// Generates a 2D vector pointing in a random direction.
     fn rand<R: Rng>(rng: &mut R) -> Self {
         let dx = rng.gen_range(-1.0f64, 1.0f64);
-        let mut dy = (1.0 - dx*dx).sqrt(); // Use that sin²x + cos²x = 1.
+        let mut dy = (1.0 - dx * dx).sqrt(); // Use that sin²x + cos²x = 1.
         if rng.gen::<bool>() {
             dy *= -1.0;
         }
