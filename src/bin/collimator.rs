@@ -4,7 +4,7 @@ extern crate gnuplot;
 extern crate dimensioned;
 
 use rand::Rng;
-use rand::distributions::{self, IndependentSample};
+use rand::distributions::IndependentSample;
 
 use dimensioned::si::*;
 use dimensioned::{Dimensionless, Recip};
@@ -41,10 +41,8 @@ impl ThisTask {
         }
     }
 
-    fn sample_pb_free_path<R: Rng>(&self, energy: Joule<f64>, rng: &mut R) -> Meter<f64> {
-        let mean_free_path = self.mfp_tot.call(energy) / M;
-        let dist = distributions::Exp::new(*mean_free_path.value());
-        dist.ind_sample(rng) * M
+    fn get_pb_mean_free_path(&self, energy: Joule<f64>) -> Meter<f64> {
+        self.mfp_tot.call(energy)
     }
 
 
@@ -86,16 +84,11 @@ impl Experiment for ThisTask {
         }
     }
 
-    fn gen_free_path<R: Rng>(
-        &self,
-        material: Material,
-        energy: Joule<f64>,
-        rng: &mut R,
-    ) -> Meter<f64> {
+    fn get_mean_free_path(&self, material: Material, energy: Joule<f64>) -> Meter<f64> {
         match material {
             Material::Detector => 0.0 * M,
             Material::Air => 0.1 * CENTI * M,
-            Material::Absorber => self.sample_pb_free_path(energy, rng),
+            Material::Absorber => self.get_pb_mean_free_path(energy),
         }
     }
 

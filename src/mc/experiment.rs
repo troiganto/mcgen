@@ -1,6 +1,9 @@
 use rand::{Rng, thread_rng};
 
+use rand::distributions::{self, IndependentSample};
+
 use dimensioned::si::*;
+use dimensioned::Dimensionless;
 
 use super::Point;
 use super::particle::Photon;
@@ -54,12 +57,7 @@ pub trait Experiment {
 
     fn get_material(&self, location: &Point) -> Material;
 
-    fn gen_free_path<R: Rng>(
-        &self,
-        material: Material,
-        energy: Joule<f64>,
-        rng: &mut R,
-    ) -> Meter<f64>;
+    fn get_mean_free_path(&self, material: Material, energy: Joule<f64>) -> Meter<f64>;
 
     fn gen_event<R: Rng>(&self, material: Material, energy: Joule<f64>, rng: &mut R) -> Event;
 
@@ -117,7 +115,14 @@ where
 {
     // Move the particle. If it leaves the experiment, stop.
     let material = exp.get_material(photon.location());
-    let scale = exp.gen_free_path(material, photon.energy(), rng);
+    let mean_free_path = exp.get_mean_free_path(material, photon.energy());
+    let scale = if mean_free_path == 0.0 * M {
+        0.0 * M
+    } else {
+        let mean_free_path = mean_free_path / M;
+        let distribution = distributions::Exp::new(*mean_free_path.value());
+        distribution.ind_sample(rng) * M
+    };
     photon.step(scale).expect("`scale` cannot be negative");
     if photon.location().x() < exp.x_start() {
         return ParticleStatus::Lost;
