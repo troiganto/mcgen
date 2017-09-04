@@ -130,11 +130,11 @@ impl Experiment for ThisTask {
         }
     }
 
-    fn get_mean_free_path(&self, material: Material, energy: Joule<f64>) -> Meter<f64> {
+    fn get_mean_free_path(&self, material: Material, energy: Joule<f64>) -> FreePath<f64> {
         match material {
-            Material::Detector => 0.0 * M,
-            Material::Air => 0.1 * CENTI * M,
-            Material::Absorber => self.get_pb_mean_free_path(energy),
+            Material::Detector => FreePath::Fix(0.0 * M),
+            Material::Air => FreePath::Fix(0.1 * CENTI * M),
+            Material::Absorber => FreePath::Exp(self.get_pb_mean_free_path(energy)),
         }
     }
 
@@ -203,8 +203,7 @@ pub fn save_hist(hist: &Histogram, filename: &str) {
 fn main() {
     let experiment = ThisTask::new();
     let mut energy_hist = Histogram::new(666, 0.0, 666.0);
-    //~ let mut radius_hist = Histogram::new(127, 0.0, 1.27);
-    let mut radius_hist = Histogram::new(100, 0.0, 100.0);
+    let mut radius_hist = Histogram::new(127, 0.0, 1.27);
 
     let n_particles = match ::std::env::args().skip(1).next() {
         Some(s) => s.parse::<usize>().expect("not a number: n_particles"),

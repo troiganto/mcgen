@@ -24,6 +24,17 @@ pub enum Material {
 }
 
 
+/// The type returned by `Experiment::get_mean_free_path()`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FreePath<T> {
+    /// The free path should always be this exact value.
+    Fix(Meter<T>),
+    /// The free path should follow an exponential distribution with
+    /// the given mean.
+    Exp(Meter<T>),
+}
+
+
 /// The type of all possible outcomes of an interaction.
 ///
 /// This type is used by `Experiment::gen_event` to find out which
@@ -111,9 +122,9 @@ pub trait Experiment {
     /// Returns the mean free path associated with at material.
     ///
     /// The mean free path is allowed to depend on the particle's
-    /// energy. The free path is assumed to follow an exponential
-    /// distribution.
-    fn get_mean_free_path(&self, material: Material, energy: Joule<f64>) -> Meter<f64>;
+    /// energy. The free path may either be fixed or follow an
+    /// exponential distribution.
+    fn get_mean_free_path(&self, material: Material, energy: Joule<f64>) -> FreePath<f64>;
 
     /// Decides whether a collision occurs at a certain point.
     ///
@@ -204,13 +215,13 @@ where
 {
     // Move the particle. If it leaves the experiment, stop.
     let material = exp.get_material(photon.location());
-    let mean_free_path = exp.get_mean_free_path(material, photon.energy());
-    let scale = if mean_free_path == 0.0 * M {
-        0.0 * M
-    } else {
-        let mean_free_path = mean_free_path / M;
-        let distribution = distributions::Exp::new(*mean_free_path.value());
-        distribution.ind_sample(rng) * M
+    let scale = match exp.get_mean_free_path(material, photon.energy()) {
+        FreePath::Fix(scale) => scale,
+        FreePath::Exp(mean) => {
+            let lambda = M / mean;
+            let distribution = distributions::Exp::new(*lambda.value());
+            distribution.ind_sample(rng) * M
+        },
     };
     photon.step(scale).expect("`scale` cannot be negative");
     if photon.location().x() < exp.x_start() {
