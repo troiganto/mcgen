@@ -12,35 +12,7 @@ use dimensioned::f64prefixes::*;
 
 use mcgen::IntoSampleIter;
 use mcgen::crosssection::*;
-
-
-fn make_mu_histogram<I>(sample: I, n_bins: usize) -> (Vec<f64>, Vec<f64>)
-where
-    I: Iterator<Item = Unitless<f64>>,
-{
-    let dmu = 2.0 / n_bins as f64;
-    let mu_coords = {
-        let mut mu_coords = Vec::with_capacity(n_bins);
-        let mut mu = -1.0;
-        for _ in 0..n_bins {
-            mu_coords.push(mu);
-            mu += dmu;
-        }
-        mu_coords
-    };
-
-    let bins = {
-        let mut bins = vec![0.0; n_bins];
-        for mu in sample {
-            let mu = *mu.value();
-            let i = ((mu - (-1.0)) / dmu) as usize;
-            bins[i] += 1.0;
-        }
-        bins
-    };
-
-    (mu_coords, bins)
-}
+use mcgen::Histogram;
 
 
 fn plot_histogram<Tx, X, Ty, Y>(filename: &str, x: X, y: Y)
@@ -95,8 +67,11 @@ fn handle_cross_section<XS>(
         .take(n_samples);
     let secs = mcgen::time::measure_seconds(
         || {
-            let (x, y) = make_mu_histogram(sample, n_bins);
-            plot_histogram(filename, x, y);
+            let mut hist = Histogram::new(n_bins, -1.0, 1.0);
+            for mu in sample {
+                hist.fill(*mu.value());
+            }
+            plot_histogram(filename, hist.bin_centers(), hist.bin_contents());
         },
     );
     println!("{:.2}", secs);
