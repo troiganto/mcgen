@@ -12,6 +12,7 @@ use dimensioned::f64prefixes::*;
 
 use mcgen::mc::*;
 use mcgen::Function;
+use mcgen::Contains;
 use mcgen::Histogram;
 use mcgen::crosssection::*;
 
@@ -107,9 +108,11 @@ impl Experiment for ThisTask {
     }
 
     fn get_material(&self, location: &Point) -> Material {
-        let (x, y) = (location.x(), location.y());
-        if 0.5 * CENTI * M < x && x < 1.5 * CENTI * M &&
-           (y > 0.1 * CENTI * M || y < -0.1 * CENTI * M) {
+        let (x, y) = location.to_tuple();
+        let collimator_x = (0.5 * CENTI * M, 1.5 * CENTI * M);
+        let hole_y = (-0.1 * CENTI * M, 0.1 * CENTI * M);
+
+        if collimator_x.contains(x) && !hole_y.contains(y) {
             Material::Absorber
         } else if x > 11.5 * CENTI * M {
             Material::Detector

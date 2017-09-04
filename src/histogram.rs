@@ -1,4 +1,4 @@
-use std::cmp::PartialOrd;
+use contains::Contains;
 
 /// Histograms count for a range of values which occurred how often.
 pub struct Histogram {
@@ -125,38 +125,5 @@ impl<'a> Iterator for BinCenters<'a> {
         self.low_edges
             .next()
             .map(|low_edge| low_edge + self.bin_width / 2.0)
-    }
-}
-
-
-/// Helper trait that makes range checks beautiful.
-///
-/// It is implemented for tuples of types that are `PartialOrd`.
-///
-/// # Examples
-/// ```
-/// assert!((0, 10).contains(5));
-/// assert!(!(0, 10).contains(12));
-/// ```
-trait Contains<T> {
-    /// Returns `true` if `value` lies in this range.
-    fn contains(&self, value: T) -> bool;
-}
-
-impl<T> Contains<T> for (T, T)
-where
-    for<'a, 'b> &'a T: PartialOrd<&'b T>,
-{
-    fn contains(&self, value: T) -> bool {
-        &self.0 <= &value && &value <= &self.1
-    }
-}
-
-impl<'t, T> Contains<&'t T> for (T, T)
-where
-    for<'a, 'b> &'a T: PartialOrd<&'b T>,
-{
-    fn contains(&self, value: &'t T) -> bool {
-        &self.0 <= value && value <= &self.1
     }
 }

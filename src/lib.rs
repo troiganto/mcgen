@@ -7,11 +7,13 @@ pub mod mc;
 pub mod time;
 pub mod sample;
 pub mod function;
+pub mod contains;
 pub mod integrate;
 pub mod histogram;
 pub mod statistics;
 pub mod crosssection;
 
+pub use contains::Contains;
 pub use function::Function;
 pub use histogram::Histogram;
 pub use integrate::{integrate, Integrate};
