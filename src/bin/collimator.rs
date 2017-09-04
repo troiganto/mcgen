@@ -10,9 +10,10 @@ use dimensioned::si::*;
 use dimensioned::{Dimensionless, Recip};
 use dimensioned::f64prefixes::*;
 
-use mcgen::crosssection::*;
 use mcgen::mc::*;
 use mcgen::Function;
+use mcgen::Histogram;
+use mcgen::crosssection::*;
 
 
 /// Container for all the necessary information about the experiment.
@@ -166,81 +167,34 @@ impl Experiment for ThisTask {
 }
 
 
-/// Histograms count for a range of values which occurred how often.
-struct Histogram {
-    range: (f64, f64),
-    low_edges: Vec<f64>,
-    weights: Vec<usize>,
-}
+/// Draws the histogram using `gnuplot`.
+///
+/// The resulting picture is saved on-disk under the path
+/// `filename`. The histogram is drawn with a logarithmic y-axis.
+pub fn save_hist(hist: &Histogram, filename: &str) {
+    use gnuplot::AutoOption::*;
+    use gnuplot::AxesCommon;
 
-impl Histogram {
-    /// Creates a new histogram with `nbins` bins filling the range
-    /// from `low` to `high`.
-    pub fn new(nbins: usize, low: f64, high: f64) -> Self {
-        let mut low_edges = Vec::with_capacity(nbins);
-        let width = (high - low) / (nbins as f64);
-        for i in 0..(nbins - 1) {
-            low_edges.push(low + width * (i as f64));
-        }
-        Histogram {
-            low_edges: low_edges,
-            weights: vec![0; nbins],
-            range: (low, high),
-        }
-    }
-
-    /// Increase the bin located at `x` by one.
-    ///
-    /// If `x` lies outside of the range of the histogram, this method
-    /// does nothing.
-    pub fn fill(&mut self, x: f64) {
-        if x < self.range.0 || x >= self.range.1 {
-            return;
-        }
-        for (i, bin) in self.low_edges.windows(2).enumerate() {
-            let (low, high) = (bin[0], bin[1]);
-            if low <= x && x < high {
-                self.weights[i] += 1;
-                break;
-            }
-        }
-    }
-
-    /// Draw the histogram as it is using `gnuplot`.
-    ///
-    /// The resulting picture is saved on-disk under the path
-    /// `filename`. The histogram is drawn with a logarithmic y-axis.
-    pub fn show(&self, filename: &str) {
-        use gnuplot::AutoOption::*;
-        use gnuplot::AxesCommon;
-
-        // Convert the lower edges of the bins to bin centers.
-        // This assumes that all bins have the same width.
-        let (low, high) = self.range;
-        let dx = (high - low) / (self.low_edges.len() as f64);
-        let centers = self.low_edges
-            .iter()
-            .map(|low_edge| low_edge + 0.5 * dx);
-
-        let mut hist = gnuplot::Figure::new();
-        hist.set_terminal("pdfcairo", filename)
-            .axes2d()
-            .set_x_range(Fix(low), Fix(high))
-            .set_y_log(Some(10.0))
-            .set_y_range(Fix(1.0), Auto)
-            .boxes(centers, &self.weights, &[]);
-        hist.show();
-    }
+    let &(low, high) = hist.range();
+    let mut figure = gnuplot::Figure::new();
+    figure
+        .set_terminal("pdfcairo", filename)
+        .axes2d()
+        .set_x_range(Fix(low), Fix(high))
+        .set_y_log(Some(10.0))
+        .set_y_range(Fix(1.0), Auto)
+        .boxes(hist.bin_centers(), hist.bin_contents(), &[]);
+    figure.show();
 }
 
 
 fn main() {
     let experiment = ThisTask::new();
     let mut energy_hist = Histogram::new(666, 0.0, 666.0);
-    let mut radius_hist = Histogram::new(127, 0.0, 1.27);
+    //~ let mut radius_hist = Histogram::new(127, 0.0, 1.27);
+    let mut radius_hist = Histogram::new(100, 0.0, 100.0);
 
-    let mut args = ::std::env::args();
-    let n_particles = match args.skip(1).next() {
+    let n_particles = match ::std::env::args().skip(1).next() {
         Some(s) => s.parse::<usize>().expect("not a number: n_particles"),
         None => panic!("missing argument: n_particles"),
     };
@@ -252,6 +206,6 @@ fn main() {
         energy_hist.fill(*energy.value());
         radius_hist.fill(radius.value().abs());
     }
-    energy_hist.show("energy_hist.pdf");
-    radius_hist.show("radius_hist.pdf");
+    save_hist(&energy_hist, "energy_hist.pdf");
+    save_hist(&radius_hist, "radius_hist.pdf");
 }
