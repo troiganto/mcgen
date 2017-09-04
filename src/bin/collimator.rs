@@ -17,6 +17,18 @@ use mcgen::Histogram;
 use mcgen::crosssection::*;
 
 
+fn choose<R: Rng>(rng: &mut R, weights: &[f64]) -> usize {
+    let choice = rng.gen_range(0.0, weights.iter().sum());
+    let mut threshold = 0.0;
+    for (i, weight) in weights.iter().enumerate() {
+        threshold += *weight;
+        if choice < threshold {
+            return i;
+        }
+    }
+    unreachable!();
+}
+
 /// Container for all the necessary information about the experiment.
 struct ThisTask {
     source: Source,
@@ -82,18 +94,15 @@ impl ThisTask {
         // cross-section Sigma, which is the reciprocal of the mean
         // free path. We multiply Sigma by meters to get a `Valueless`
         // quantity, since `rand` cannot handle units.
-        let thres_coh = 0.0;
-        let thres_inc = self.mfp_coh.call(energy).recip() * M;
-        let thres_pho = self.mfp_inc.call(energy).recip() * M + thres_inc;
-        let upper_lim = self.mfp_pho.call(energy).recip() * M + thres_pho;
-
-        let value = rng.gen_range(thres_coh, *upper_lim.value());
-        if value > *thres_pho.value() {
-            Event::Absorbed
-        } else if value > *thres_inc.value() {
-            Event::IncoherentScatter
-        } else {
-            Event::CoherentScatter
+        let w_coherent = self.mfp_coh.call(energy).recip() * M;
+        let w_incoherent = self.mfp_inc.call(energy).recip() * M;
+        let w_photo = self.mfp_pho.call(energy).recip() * M;
+        let weights = [*w_coherent.value(), *w_incoherent.value(), *w_photo.value()];
+        match choose(rng, &weights) {
+            0 => Event::CoherentScatter,
+            1 => Event::IncoherentScatter,
+            2 => Event::Absorbed,
+            _ => unreachable!(),
         }
     }
 }
