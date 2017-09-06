@@ -31,7 +31,7 @@ fn choose<R: Rng>(rng: &mut R, weights: &[f64]) -> usize {
 
 /// Container for all the necessary information about the experiment.
 struct ThisTask {
-    source: Source,
+    source: EastPointingSource,
     coherent_xsection: CoherentCrossSection,
     incoherent_xsection: IncoherentCrossSection,
     mfp_tot: Function<Joule<f64>, Meter<f64>>,
@@ -59,7 +59,7 @@ impl ThisTask {
             .expect("MFWL.dat")
             .into_iter();
         ThisTask {
-            source: Source::new((0.0 * M, 0.0 * M).into(), 661.7 * KILO * EV),
+            source: EastPointingSource::new((0.0 * M, 0.0 * M).into(), 661.7 * KILO * EV),
             coherent_xsection: CoherentCrossSection::new("data/AFF.dat").expect("AFF.dat"),
             incoherent_xsection: IncoherentCrossSection::new("data/ISF.dat").expect("ISF.dat"),
             mfp_tot: mean_free_paths
@@ -108,7 +108,9 @@ impl ThisTask {
 }
 
 impl Experiment for ThisTask {
-    fn source(&self) -> &Source {
+    type Source = EastPointingSource;
+
+    fn source(&self) -> &Self::Source {
         &self.source
     }
 

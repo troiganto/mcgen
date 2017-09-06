@@ -6,6 +6,7 @@ use dimensioned::si::*;
 use dimensioned::Dimensionless;
 
 use super::Point;
+use super::source::Source;
 use super::particle::Photon;
 
 
@@ -52,29 +53,6 @@ pub enum Event {
 }
 
 
-/// A point source of monoenergetic photons.
-pub struct Source {
-    location: Point,
-    energy: Joule<f64>,
-}
-
-impl Source {
-    /// Creates a new source at the given location.
-    ///
-    /// The returned source produces photons of the given energy.
-    pub fn new(location: Point, energy: Joule<f64>) -> Self {
-        Source { location, energy }
-    }
-
-    /// Emit a photon into a random direction.
-    ///
-    /// This uses `rng` as a source of randomness.
-    pub fn emit_photon<R: Rng>(&self, rng: &mut R) -> Photon {
-        Photon::new(self.location.clone(), rng.gen(), self.energy)
-    }
-}
-
-
 /// Private type that describes the outcome of an interaction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParticleStatus {
@@ -96,12 +74,14 @@ enum ParticleStatus {
 /// This trait is not particularly general and has several arbitrary
 /// restrictions to keep it simple.
 pub trait Experiment {
+    type Source: Source;
+
     /// Returns a reference for the photon particle source of the
     /// experiment.
     ///
     /// By design, this trait currently allows only one source to be
     /// used.
-    fn source(&self) -> &Source;
+    fn source(&self) -> &Self::Source;
 
     /// Returns the X-coordinate at which the experiment begins.
     ///

@@ -134,11 +134,11 @@ impl Direction {
 impl Rand for Direction {
     /// Generates a 2D vector pointing in a random direction.
     fn rand<R: Rng>(rng: &mut R) -> Self {
+        // Generate sin x and use that that sin²x + cos²x = 1.
+        // The multiplication by -1 solves the issue that squaring the
+        // sine loses its sign.
         let dx = rng.gen_range(-1.0f64, 1.0f64);
-        let mut dy = (1.0 - dx * dx).sqrt(); // Use that sin²x + cos²x = 1.
-        if rng.gen::<bool>() {
-            dy *= -1.0;
-        }
+        let dy = (1.0 - dx * dx).sqrt() * if rng.gen::<bool>() { 1.0 } else { -1.0 };
         Direction::new(Unitless::new(dx), Unitless::new(dy))
     }
 }
